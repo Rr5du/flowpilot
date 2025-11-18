@@ -10,7 +10,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
-![FlowPilot 横幅](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:3167188162034564394fcABjnTyDXj_V_VNLfgLHM-YD:1763384369107)
+![FlowPilot 横幅](./public/screenshots/banner.png)
 
 </div>
 
@@ -36,49 +36,65 @@
 
 ### 功能 1：对话式生成 + 实时预览
 
+> 与 AI 对话，迭代式创建和优化图表
+
 | 初始请求："请随便画一只猫咪" | 追加内容："在旁边再画一只小狗" |
 |----------------------------|----------------------------|
-| ![猫咪](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-3005920242718049600fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108) | ![猫和狗](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:3228178480041103531fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108) |
+| ![猫咪](./public/screenshots/feature-chat-cat.png) | ![猫和狗](./public/screenshots/feature-chat-dog.png) |
 
 ### 功能 2：风格复制
 
+> 上传参考图，FlowPilot 将复制其风格
+
 | 原始参考图 | AI 生成同风格图表 |
 |-----------|------------------|
-| ![原图](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:2088457989885341663fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108) | ![复制风格](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-3429045031859737651fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108) |
+| ![原图](./public/screenshots/feature-style-original.png) | ![复制风格](./public/screenshots/feature-style-generated.png) |
 
 ### 功能 3：FlowPilot Brief - 风格配置
 
-![FlowBrief 配置](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:5076325540898615997fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108)
+> 一次配置图表偏好，应用到所有生成
+
+![FlowBrief 配置](./public/screenshots/feature-brief-config.png)
+
+**视觉风格对比：**
 
 | 正式时序图 | 草绘时序图 |
 |-----------|-----------|
-| ![正式](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-6544881212478781000fcABjnTyDXj_V_VNLfgLHM-YD:1763384369108) | ![草稿](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:1836148692676380082fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
+| ![正式](./public/screenshots/feature-sequence-formal.png) | ![草稿](./public/screenshots/feature-sequence-sketch.png) |
 
-### 功能 4：模型对比生成 - 5 个模型同时 PK
+### 功能 4：模型对比生成
+
+> 最多 5 个大模型并排对比，选择最佳结果
 
 | 模型选择 | 对比结果 |
 |---------|---------|
-| ![模型配置](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-1862551751719320689fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) | ![对比](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-3112982623129742660fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
+| ![模型配置](./public/screenshots/feature-model-selection.png) | ![对比](./public/screenshots/feature-model-comparison.png) |
 
 ### 功能 5：第三方模型配置
 
-![模型配置](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-8733473680767249177fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109)
+> 轻松配置自定义 API 端点和模型
+
+![模型配置](./public/screenshots/feature-model-config.png)
 
 ### 功能 6：PPT 生成器（Beta）
 
+> 实验性功能：使用 AI 生成 PowerPoint 演示文稿
+
 | PPT 输入 | 生成的幻灯片 |
 |---------|-------------|
-| ![PPT 输入](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:7228850631256574744fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) | ![PPT 输出](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:1692396851258385169fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
+| ![PPT 输入](./public/screenshots/feature-ppt-input.png) | ![PPT 输出](./public/screenshots/feature-ppt-output.png) |
 
 ### 实际生成案例展示
+
+> FlowPilot 生成的各种流程图、时序图和系统架构图
 
 <div align="center">
 
 | 示例 1 | 示例 2 |
 |--------|--------|
-| ![案例 1](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:1888198707985133685fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) | ![案例 2](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:3796899254975046411fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
-| ![案例 3](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:1437829768119417425fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) | ![案例 4](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:4769143755415665585fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
-| ![案例 5](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-7728609183008724058fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) | ![案例 6](https://docs.corp.kuaishou.com/image/api/external/load/out?code=fcABjnTyDXj_V_VNLfgLHM-YD:-4075463795420338805fcABjnTyDXj_V_VNLfgLHM-YD:1763384369109) |
+| ![案例 1](./public/screenshots/example-diagram-1.png) | ![案例 2](./public/screenshots/example-diagram-2.png) |
+| ![案例 3](./public/screenshots/example-diagram-3.png) | ![案例 4](./public/screenshots/example-diagram-4.png) |
+| ![案例 5](./public/screenshots/example-diagram-5.png) | ![案例 6](./public/screenshots/example-diagram-6.png) |
 
 </div>
 
