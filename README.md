@@ -268,8 +268,8 @@ FlowPilot concatenates configured prompts from the "Brief" section into the syst
 
 ### Model Selection
 
-- **Recommended Models**: Claude 3.5 Sonnet, GPT-4, and GLM-4 perform well for flowchart structures and connections
-- **Image References**: Use vision-capable models (Claude Vision, GPT-4V, Gemini Vision) for screenshot/reference image needs
+- **Recommended Models**: Claude 4.5 Sonnet, Claude-4 perform well for flowchart structures and connections
+- **Image References**: Use vision-capable models for screenshot/reference image needs
 - **Iterative Refinement**: First versions are usually rough, expect several rounds of "fine-tune/beautify/reorganize" to achieve satisfaction
 
 ### Prompt Writing Tips
