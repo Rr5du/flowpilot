@@ -10,7 +10,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
-![FlowPilot 横幅](./public/screenshots/banner.png)
+
 
 </div>
 
@@ -32,7 +32,7 @@
 ## 📸 效果展示
 
 ### 主工作区
-![工作区](./public/example.png)
+![Main Workspace](./public/banner.png)
 
 ### 功能 1：对话式生成 + 实时预览
 
@@ -40,7 +40,7 @@
 
 | 初始请求："请随便画一只猫咪" | 追加内容："在旁边再画一只小狗" |
 |----------------------------|----------------------------|
-| ![猫咪](./public/screenshots/feature-chat-cat.png) | ![猫和狗](./public/screenshots/feature-chat-dog.png) |
+| ![猫咪](./public/cat1.png) | ![猫和狗](./public/cat2.png) |
 
 ### 功能 2：风格复制
 
@@ -48,19 +48,19 @@
 
 | 原始参考图 | AI 生成同风格图表 |
 |-----------|------------------|
-| ![原图](./public/screenshots/feature-style-original.png) | ![复制风格](./public/screenshots/feature-style-generated.png) |
+| ![原图](./public/image7.png) | ![复制风格](./public/image8.png) |
 
 ### 功能 3：FlowPilot Brief - 风格配置
 
 > 一次配置图表偏好，应用到所有生成
 
-![FlowBrief 配置](./public/screenshots/feature-brief-config.png)
+![FlowBrief 配置](./public/image9.png)
 
 **视觉风格对比：**
 
 | 正式时序图 | 草绘时序图 |
 |-----------|-----------|
-| ![正式](./public/screenshots/feature-sequence-formal.png) | ![草稿](./public/screenshots/feature-sequence-sketch.png) |
+| ![正式](./public/image10.png) | ![草稿](./public/image11.png) |
 
 ### 功能 4：模型对比生成
 
@@ -68,13 +68,13 @@
 
 | 模型选择 | 对比结果 |
 |---------|---------|
-| ![模型配置](./public/screenshots/feature-model-selection.png) | ![对比](./public/screenshots/feature-model-comparison.png) |
+| ![模型配置](./public/image12.png) | ![对比](./public/image13.png) |
 
 ### 功能 5：第三方模型配置
 
 > 轻松配置自定义 API 端点和模型
 
-![模型配置](./public/screenshots/feature-model-config.png)
+![模型配置](./public/image14.png)
 
 ### 功能 6：PPT 生成器（Beta）
 
@@ -82,7 +82,7 @@
 
 | PPT 输入 | 生成的幻灯片 |
 |---------|-------------|
-| ![PPT 输入](./public/screenshots/feature-ppt-input.png) | ![PPT 输出](./public/screenshots/feature-ppt-output.png) |
+| ![PPT 输入](./public/image15.png) | ![PPT 输出](./public/image16.png) |
 
 ### 实际生成案例展示
 
@@ -92,9 +92,8 @@
 
 | 示例 1 | 示例 2 |
 |--------|--------|
-| ![案例 1](./public/screenshots/example-diagram-1.png) | ![案例 2](./public/screenshots/example-diagram-2.png) |
-| ![案例 3](./public/screenshots/example-diagram-3.png) | ![案例 4](./public/screenshots/example-diagram-4.png) |
-| ![案例 5](./public/screenshots/example-diagram-5.png) | ![案例 6](./public/screenshots/example-diagram-6.png) |
+| ![案例 1](./public/image17.png) | ![案例 2](./public/image18.png) |
+| ![案例 3](./public/image19.png) | ![案例 4](./public/image20.png) |
 
 </div>
 

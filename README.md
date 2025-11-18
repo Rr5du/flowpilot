@@ -10,8 +10,6 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 
-![FlowPilot Banner](./public/banner.png)
-
 </div>
 
 ## 🎯 What is FlowPilot?
@@ -32,57 +30,58 @@
 ## 📸 Screenshots & Examples
 
 ### Main Workspace
-![Main Workspace](./public/example.png)
+![Main Workspace](./public/banner.png)
+
 
 ### Feature 1: Conversational Generation + Real-time Preview
 
 > Chat with AI to iteratively create and refine your diagrams
 
 | Initial Request: "Please draw a cat" | Follow-up: "Draw a dog next to it" |
-|--------------------------------------|-------------------------------------|
-| ![Cat](./public/screenshots/feature-chat-cat.png) | ![Cat and Dog](./public/screenshots/feature-chat-dog.png) |
+|--------------------------------------|------------------------------------|
+| ![Cat](./public/cat1.png)            | ![Cat and Dog](./public/cat2.png)         |
 
 ### Feature 2: Style Replication
 
 > Upload a reference image, and FlowPilot will replicate its style
 
-| Original Reference | AI Generated with Same Style |
-|--------------------|-------------------------------|
-| ![Original](./public/screenshots/feature-style-original.png) | ![Replicated](./public/screenshots/feature-style-generated.png) |
+| Original Reference               | AI Generated with Same Style       |
+|----------------------------------|------------------------------------|
+| ![Original](./public/image7.png) | ![Replicated](./public/image8.png) |
 
 ### Feature 3: FlowPilot Brief - Style Configuration
 
 > Configure your diagram preferences once, apply to all generations
 
-![FlowBrief Config](./public/screenshots/feature-brief-config.png)
+![FlowBrief Config](./public/image9.png)
 
 **Visual Style Comparison:**
 
-| Formal Sequence Diagram | Sketch-Style Sequence Diagram |
-|-------------------------|-------------------------------|
-| ![Formal](./public/screenshots/feature-sequence-formal.png) | ![Sketch](./public/screenshots/feature-sequence-sketch.png) |
+| Formal Sequence Diagram         | Sketch-Style Sequence Diagram   |
+|---------------------------------|---------------------------------|
+| ![Formal](./public/image10.png) | ![Sketch](./public/image11.png) |
 
 ### Feature 4: Multi-Model Comparison
 
 > Compare up to 5 LLMs side-by-side, choose the best result
 
-| Model Selection | Comparison Results |
-|-----------------|-------------------|
-| ![Model Config](./public/screenshots/feature-model-selection.png) | ![Comparison](./public/screenshots/feature-model-comparison.png) |
+| Model Selection                       | Comparison Results                  |
+|---------------------------------------|-------------------------------------|
+| ![Model Config](./public/image12.png) | ![Comparison](./public/image13.png) |
 
 ### Feature 5: Third-Party Model Configuration
 
 > Easily configure custom API endpoints and models
 
-![Model Configuration](./public/screenshots/feature-model-config.png)
+![Model Configuration](./public/image14.png)
 
 ### Feature 6: PPT Generator (Beta)
 
 > Experimental feature: Generate PowerPoint presentations with AI
 
-| PPT Input | Generated Slides |
-|-----------|------------------|
-| ![PPT Input](./public/screenshots/feature-ppt-input.png) | ![PPT Output](./public/screenshots/feature-ppt-output.png) |
+| PPT Input                          | Generated Slides                    |
+|------------------------------------|-------------------------------------|
+| ![PPT Input](./public/image15.png) | ![PPT Output](./public/image16.png) |
 
 ### Real-World Diagram Examples
 
@@ -90,11 +89,10 @@
 
 <div align="center">
 
-| Example 1 | Example 2 |
-|-----------|-----------|
-| ![Diagram 1](./public/screenshots/example-diagram-1.png) | ![Diagram 2](./public/screenshots/example-diagram-2.png) |
-| ![Diagram 3](./public/screenshots/example-diagram-3.png) | ![Diagram 4](./public/screenshots/example-diagram-4.png) |
-| ![Diagram 5](./public/screenshots/example-diagram-5.png) | ![Diagram 6](./public/screenshots/example-diagram-6.png) |
+| Example 1                                                | Example 2                                                |
+|----------------------------------------------------------|----------------------------------------------------------|
+| ![Diagram 1](./public/image17.png)                       | ![Diagram 2](./public/image18.png)                       |
+| ![Diagram 3](./public/image19.png)                       | ![Diagram 4](./public/image20.png)                       |
 
 </div>
 
