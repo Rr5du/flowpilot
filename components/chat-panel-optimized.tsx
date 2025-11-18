@@ -994,7 +994,7 @@ export default function ChatPanelOptimized({
                             </button>
                         )}
                         <a
-                            href="https://github.com/DayuanJiang/next-ai-draw-io"
+                            href="https://github.com/cos43/flowpilot"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white"
