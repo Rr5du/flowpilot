@@ -143,7 +143,7 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 
 # Optional: Custom draw.io URL
-NEXT_PUBLIC_DRAWIO_BASE_URL=https://embed.diagrams.net
+NEXT_PUBLIC_DRAWIO_BASE_URL=https://app.diagrams.net
 ```
 
 ### Launch Application

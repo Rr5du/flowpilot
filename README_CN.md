@@ -144,7 +144,7 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 
 # 可选：自定义 draw.io 地址
-NEXT_PUBLIC_DRAWIO_BASE_URL=https://embed.diagrams.net
+NEXT_PUBLIC_DRAWIO_BASE_URL=https://app.diagrams.net
 ```
 
 ### 启动应用
