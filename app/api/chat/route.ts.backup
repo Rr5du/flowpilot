@@ -1,4 +1,4 @@
-import { streamText, convertToModelMessages, generateText, createUIMessageStreamResponse } from "ai";
+import { streamText, convertToModelMessages, generateText } from "ai";
 
 import { z } from "zod/v3";
 import { resolveChatModel } from "@/lib/server-models";
@@ -504,7 +504,7 @@ IMPORTANT: Keep edits concise:
         },
       },
       temperature: 0,
-    };
+    });
 
     // Error handler function to provide detailed error messages
     function errorHandler(error: unknown) {
@@ -535,16 +535,14 @@ IMPORTANT: Keep edits concise:
 
       return JSON.stringify(error);
     }
-    
-    // 根据 enableStreaming 决定使用流式或非流式
-    if (enableStreaming) {
-      // 流式响应
-      const result = await streamText(commonConfig);
 
-      return result.toUIMessageStreamResponse({
-        onError: errorHandler,
-        // 在流式响应结束时添加 token 使用信息到 message metadata
-        onFinish: async ({ responseMessage, messages }) => {
+    // 记录请求开始时间
+    const startTime = Date.now();
+
+    return result.toUIMessageStreamResponse({
+      onError: errorHandler,
+      // 在流式响应结束时添加 token 使用信息到 message metadata
+      onFinish: async ({ responseMessage, messages }) => {
         const endTime = Date.now();
         const durationMs = endTime - startTime;
         
@@ -593,99 +591,6 @@ IMPORTANT: Keep edits concise:
         return undefined;
       },
     });
-    } else {
-      // 非流式响应 - 使用 generateText
-      // 注意：非流式模式下不自动执行工具调用，让客户端处理
-      // 这样可以保持与流式模式一致的体验
-      const result = await generateText(commonConfig);
-      
-      const endTime = Date.now();
-      const durationMs = endTime - startTime;
-      
-      console.log('Generation finished (non-streaming):', {
-        usage: {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0),
-        },
-        durationMs,
-        toolCalls: result.toolCalls?.length || 0,
-        finishReason: result.finishReason,
-      });
-
-      // 创建 UIMessageChunk 流来包装 generateText 的结果
-      // 非流式模式下，我们将完整结果一次性发送，但格式与流式兼容
-      const chunks: any[] = [];
-      const messageId = `msg-${Date.now()}`;
-      
-      // 开始消息
-      chunks.push({
-        type: 'start',
-        messageId,
-        messageMetadata: {
-          usage: {
-            inputTokens: result.usage.inputTokens || 0,
-            outputTokens: result.usage.outputTokens || 0,
-            totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0),
-          },
-          durationMs,
-        },
-      });
-      
-      // 添加文本内容（如果有）
-      if (result.text && result.text.length > 0) {
-        chunks.push({ type: 'text-start', id: messageId });
-        chunks.push({ type: 'text-delta', id: messageId, delta: result.text });
-        chunks.push({ type: 'text-end', id: messageId });
-      }
-      
-      // 添加工具调用 - 使用正确的字段名 'input' 而不是 'args'
-      if (result.toolCalls && result.toolCalls.length > 0) {
-        for (const toolCall of result.toolCalls) {
-          chunks.push({
-            type: 'tool-input-available',
-            toolCallId: toolCall.toolCallId,
-            toolName: toolCall.toolName,
-            input: toolCall.input,  // 注意这里使用 input 而不是 args
-          });
-        }
-      }
-      
-      // 完成消息
-      chunks.push({
-        type: 'finish',
-        finishReason: result.finishReason,
-        messageMetadata: {
-          usage: {
-            inputTokens: result.usage.inputTokens || 0,
-            outputTokens: result.usage.outputTokens || 0,
-            totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0),
-          },
-          durationMs,
-          finishReason: result.finishReason,
-        },
-      });
-      
-      // 创建 ReadableStream 发送所有 chunks
-      const stream = new ReadableStream({
-        start(controller) {
-          for (const chunk of chunks) {
-            controller.enqueue(chunk);
-          }
-          controller.close();
-        },
-      });
-      
-      // 使用 AI SDK 的 createUIMessageStreamResponse 创建响应
-      return createUIMessageStreamResponse({
-        stream,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
-      });
-    }
   } catch (error) {
     console.error('Error in chat route:', error);
     // 提供更详细的错误信息

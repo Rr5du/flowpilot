@@ -8,10 +8,49 @@ import React, {
     useCallback,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Check, Database } from "lucide-react";
+import { ChevronDown, Check, Database, Zap, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { RuntimeModelOption } from "@/types/model-config";
+
+// Simple Switch component
+function Switch({ 
+    checked, 
+    onCheckedChange, 
+    disabled,
+    onClick,
+}: { 
+    checked: boolean; 
+    onCheckedChange: (checked: boolean) => void;
+    disabled?: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            disabled={disabled}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick?.(e);
+                onCheckedChange(!checked);
+            }}
+            className={cn(
+                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                checked ? "bg-blue-600" : "bg-gray-300",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
+        >
+            <span
+                className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    checked ? "translate-x-5" : "translate-x-0.5"
+                )}
+            />
+        </button>
+    );
+}
 
 interface ModelSelectorProps {
     selectedModelKey?: string;
@@ -19,6 +58,7 @@ interface ModelSelectorProps {
     models: RuntimeModelOption[];
     onManage?: () => void;
     disabled?: boolean;
+    onModelStreamingChange?: (modelKey: string, isStreaming: boolean) => void;
 }
 
 interface GroupedModelOptions {
@@ -34,6 +74,7 @@ export function ModelSelector({
     models,
     onManage,
     disabled = false,
+    onModelStreamingChange,
 }: ModelSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -125,6 +166,8 @@ export function ModelSelector({
         ? `${selectedModel.label || selectedModel.modelId}`
         : "配置模型";
 
+    const isStreaming = selectedModel?.isStreaming ?? false;
+
     return (
         <div className="relative">
             <Button
@@ -145,6 +188,17 @@ export function ModelSelector({
             >
                 <span className="flex items-center gap-2 truncate">
                     {!selectedModel && <Database className="h-3.5 w-3.5" />}
+                    {selectedModel && (
+                        isStreaming ? (
+                            <span title="流式输出">
+                                <Zap className="h-3.5 w-3.5 text-blue-500" />
+                            </span>
+                        ) : (
+                            <span title="普通输出">
+                                <FileText className="h-3.5 w-3.5 text-slate-400" />
+                            </span>
+                        )
+                    )}
                     <span className="truncate max-w-[120px]">{buttonLabel}</span>
                 </span>
                 <ChevronDown className="ml-1 h-3 w-3 shrink-0" />
@@ -199,36 +253,67 @@ export function ModelSelector({
                                                 </span>
                                             </div>
                                             {group.items.map((model) => (
-                                                <button
+                                                <div
                                                     key={model.key}
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleSelect(model.key);
-                                                    }}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                    }}
                                                     className={cn(
-                                                        "flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left text-sm transition hover:bg-slate-50",
+                                                        "flex w-full flex-col items-start gap-2 px-4 py-2 text-left text-sm transition hover:bg-slate-50",
                                                         selectedModelKey === model.key &&
                                                             "bg-slate-900/5"
                                                     )}
                                                 >
-                                                    <div className="flex w-full items-center justify-between">
-                                                        <span className="font-medium text-slate-900">
-                                                            {model.label || model.modelId}
-                                                        </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleSelect(model.key);
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                        }}
+                                                        className="flex w-full items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {model.isStreaming ? (
+                                                                <span title="流式输出">
+                                                                    <Zap className="h-3.5 w-3.5 text-blue-500" />
+                                                                </span>
+                                                            ) : (
+                                                                <span title="普通输出">
+                                                                    <FileText className="h-3.5 w-3.5 text-slate-400" />
+                                                                </span>
+                                                            )}
+                                                            <span className="font-medium text-slate-900">
+                                                                {model.label || model.modelId}
+                                                            </span>
+                                                        </div>
                                                         {selectedModelKey === model.key && (
                                                             <Check className="h-4 w-4 text-slate-900" />
                                                         )}
-                                                    </div>
-                                                    <div className="text-xs font-mono text-slate-400">
+                                                    </button>
+                                                    <div className="ml-5 text-xs font-mono text-slate-400">
                                                         {model.modelId}
                                                     </div>
-                                                </button>
+                                                    {/* 流式输出开关 */}
+                                                    {onModelStreamingChange && (
+                                                        <div className="ml-5 flex items-center gap-2 text-xs">
+                                                            <span className="text-slate-600">流式输出:</span>
+                                                            <Switch
+                                                                checked={model.isStreaming ?? false}
+                                                                onCheckedChange={(checked) => {
+                                                                    onModelStreamingChange(model.key, checked);
+                                                                }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                }}
+                                                            />
+                                                            <span className="text-slate-400">
+                                                                {model.isStreaming ? '开启' : '关闭'}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     ))}

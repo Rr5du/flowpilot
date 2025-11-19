@@ -3,6 +3,7 @@ export interface EndpointModelConfig {
     modelId: string;
     label: string;
     description?: string;
+    isStreaming?: boolean; // 该模型是否使用流式输出，默认 false
     createdAt: number;
     updatedAt: number;
 }
@@ -22,6 +23,7 @@ export interface RuntimeModelConfig {
     baseUrl: string;
     apiKey: string;
     label?: string;
+    enableStreaming?: boolean; // 是否启用流式输出，默认 false
 }
 
 export interface RuntimeModelOption extends RuntimeModelConfig {
@@ -29,6 +31,7 @@ export interface RuntimeModelOption extends RuntimeModelConfig {
     endpointId: string;
     endpointName: string;
     providerHint: string;
+    isStreaming?: boolean; // 继承模型的流式配置
 }
 
 export interface ModelRegistryState {

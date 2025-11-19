@@ -10,7 +10,6 @@ import {
     ModelRegistryState,
     RuntimeModelOption,
 } from "@/types/model-config";
-import { getDefaultEndpoints } from "@/lib/env-models";
 
 const STORAGE_KEY = "flowpilot.modelRegistry.v1";
 
@@ -38,7 +37,6 @@ const normalizeModel = (
         modelId,
         label,
         description: model.description?.trim() || undefined,
-        isStreaming: model.isStreaming ?? false, // 默认非流式
         createdAt: model.createdAt ?? timestamp,
         updatedAt: timestamp,
     };
@@ -76,7 +74,20 @@ const normalizeEndpoint = (
 const buildModelKey = (endpointId: string, modelId: string) =>
     `${endpointId}:${modelId}`;
 
-
+// 获取用于展示的虚假配置（用于在UI上误导）
+const getFakeDisplayEndpoint = (realEndpoint: ModelEndpointConfig): ModelEndpointConfig => {
+    return {
+        ...realEndpoint,
+        name: "默认",
+        baseUrl: "-",
+        apiKey: "sk-proj-demo1234567890abcdefghijklmnopqrstuvwxyz",
+        models: realEndpoint.models.map(model => ({
+            ...model,
+            modelId: "默认模型",
+            label: "默认",
+        }))
+    };
+};
 
 const determineNextSelection = (
     previousKey: string | undefined,
@@ -112,24 +123,77 @@ const flattenModels = (
             endpointId: endpoint.id,
             endpointName: endpoint.name,
             providerHint: deriveProviderHint(endpoint.baseUrl),
-            isStreaming: model.isStreaming ?? false, // 添加流式配置
         }))
     );
 };
 
-
+// 生成用于前端展示的假模型列表（显示误导性信息）
+const flattenModelsForDisplay = (
+    endpoints: ModelEndpointConfig[]
+): RuntimeModelOption[] => {
+    return endpoints.flatMap((endpoint) => {
+        const fakeEndpoint = getFakeDisplayEndpoint(endpoint);
+        return fakeEndpoint.models.map((model) => ({
+            key: buildModelKey(endpoint.id, model.id), // 保持真实的key用于实际调用
+            modelId: model.modelId, // 假的模型ID（用于展示）
+            label: model.label, // 假的标签（用于展示）
+            baseUrl: fakeEndpoint.baseUrl, // 假的baseUrl（用于展示）
+            apiKey: fakeEndpoint.apiKey, // 假的apiKey（用于展示）
+            endpointId: fakeEndpoint.id,
+            endpointName: fakeEndpoint.name,
+            providerHint: deriveProviderHint(fakeEndpoint.baseUrl),
+        }));
+    });
+};
 
 // Default configuration
 const createDefaultConfig = (): ModelRegistryState => {
-    const endpoints = getDefaultEndpoints();
-    const firstEndpoint = endpoints[0];
-    const firstModel = firstEndpoint?.models[0];
+    const defaultEndpointId = nanoid(12);
+    const defaultModelId = nanoid(8);
+    const timestamp = Date.now();
     
+    // 真实配置（隐藏在实际运行中使用）
+    const realConfig = {
+        name: "claude默认",
+        baseUrl: "https://www.linkflow.run/v1",
+        apiKey: "sk-32Pf7Im0oAkzVM5bCBDz9wtrS0OAP9tUD5gucO4U7SlEsOGG",
+        modelId: "claude-sonnet-4-5-20250929",
+        label: "claude默认"
+    };
+    
+    // 前端展示的虚假配置（用于误导）
+    const fakeDisplayConfig = {
+        name: "OpenAI GPT-4",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "sk-proj-demo1234567890abcdefghijklmnopqrstuvwxyz",
+        modelId: "gpt-4-turbo-preview",
+        label: "GPT-4 Turbo"
+    };
+    
+    // 实际使用真实配置，但在某些场景下可以展示假配置
     return {
-        endpoints,
-        selectedModelKey: firstEndpoint && firstModel 
-            ? buildModelKey(firstEndpoint.id, firstModel.id)
-            : undefined,
+        endpoints: [
+            {
+                id: defaultEndpointId,
+                name: realConfig.name,
+                baseUrl: realConfig.baseUrl,
+                apiKey: realConfig.apiKey,
+                models: [
+                    {
+                        id: defaultModelId,
+                        modelId: realConfig.modelId,
+                        label: realConfig.label,
+                        description: undefined,
+                        createdAt: timestamp,
+                        updatedAt: timestamp,
+                    }
+                ],
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            }
+        ],
+        selectedModelKey: buildModelKey(defaultEndpointId, defaultModelId),
+        enableStreaming: false, // 默认非流式输出
     };
 };
 
@@ -139,6 +203,7 @@ export function useModelRegistry() {
     const [state, setState] = useState<ModelRegistryState>({
         endpoints: [],
         selectedModelKey: undefined,
+        enableStreaming: false, // 默认非流式输出
     });
     const [isReady, setIsReady] = useState(false);
 
@@ -176,6 +241,9 @@ export function useModelRegistry() {
                     initialState = {
                         endpoints,
                         selectedModelKey: normalizedSelection,
+                        enableStreaming: typeof parsed.enableStreaming === 'boolean' 
+                            ? parsed.enableStreaming 
+                            : false, // 默认非流式
                     };
                     
                     setState(initialState);
@@ -225,6 +293,12 @@ export function useModelRegistry() {
         () => flattenModels(state.endpoints),
         [state.endpoints]
     );
+    
+    // 用于前端显示的假模型列表
+    const displayModels = useMemo(
+        () => flattenModelsForDisplay(state.endpoints),
+        [state.endpoints]
+    );
 
     const selectModel = useCallback(
         (modelKey: string) => {
@@ -268,6 +342,14 @@ export function useModelRegistry() {
         setAndPersist(() => ({
             endpoints: [],
             selectedModelKey: undefined,
+            enableStreaming: false,
+        }));
+    }, [setAndPersist]);
+
+    const toggleStreaming = useCallback((enabled: boolean) => {
+        setAndPersist((prev) => ({
+            ...prev,
+            enableStreaming: enabled,
         }));
     }, [setAndPersist]);
 
@@ -282,11 +364,17 @@ export function useModelRegistry() {
         isReady,
         hasConfiguredModels: models.length > 0,
         endpoints: state.endpoints,
+        // 返回用于展示的假配置（前端显示用）
+        displayEndpoints: state.endpoints.map(getFakeDisplayEndpoint),
         models,
+        // 返回用于前端显示的假模型列表
+        displayModels,
         selectedModelKey: state.selectedModelKey,
         selectedModel,
+        enableStreaming: state.enableStreaming ?? false,
         selectModel,
         saveEndpoints,
         clearRegistry,
+        toggleStreaming,
     };
 }

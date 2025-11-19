@@ -40,6 +40,8 @@ interface ChatInputOptimizedProps {
     onOpenComparisonConfig?: () => void;
     isCompareLoading?: boolean;
     interactionLocked?: boolean;
+    // 流式配置回调
+    onModelStreamingChange?: (modelKey: string, isStreaming: boolean) => void;
 }
 
 export function ChatInputOptimized({
@@ -61,6 +63,7 @@ export function ChatInputOptimized({
     onOpenComparisonConfig = () => {},
     isCompareLoading = false,
     interactionLocked = false,
+    onModelStreamingChange,
 }: ChatInputOptimizedProps) {
     const { diagramHistory } = useDiagram();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -297,7 +300,9 @@ export function ChatInputOptimized({
                                 models={modelOptions}
                                 onManage={onManageModels}
                                 disabled={status === "streaming" || interactionLocked}
+                                onModelStreamingChange={onModelStreamingChange}
                             />
+
                         <Button
                             type="button"
                             variant="outline"

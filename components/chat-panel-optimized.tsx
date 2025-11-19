@@ -142,6 +142,27 @@ export default function ChatPanelOptimized({
     const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
     const hasPromptedModelSetup = useRef(false);
 
+    // 更新模型的流式设置
+    const handleModelStreamingChange = useCallback((modelKey: string, isStreaming: boolean) => {
+        const [endpointId, modelId] = modelKey.split(':');
+        const updatedEndpoints = modelEndpoints.map(endpoint => {
+            if (endpoint.id === endpointId) {
+                return {
+                    ...endpoint,
+                    models: endpoint.models.map(model => {
+                        if (model.id === modelId) {
+                            return { ...model, isStreaming, updatedAt: Date.now() };
+                        }
+                        return model;
+                    }),
+                    updatedAt: Date.now(),
+                };
+            }
+            return endpoint;
+        });
+        saveEndpoints(updatedEndpoints);
+    }, [modelEndpoints, saveEndpoints]);
+
     // State management
     const [files, setFiles] = useState<File[]>([]);
     const [showHistory, setShowHistory] = useState(false);
@@ -281,25 +302,18 @@ export default function ChatPanelOptimized({
                             throw new Error("大模型返回的 XML 为空，无法渲染。");
                         }
                         
-                        // 使用 requestIdleCallback 延迟更新,避免阻塞主线程
-                        if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-                            (window as any).requestIdleCallback(() => {
-                                diagramResultsRef.current.set(toolCall.toolCallId, {
-                                    xml,
-                                    runtime: selectedModel ?? undefined,
-                                });
-                                setDiagramResultVersion((prev) => prev + 1);
-                            });
-                        } else {
-                            // fallback for browsers without requestIdleCallback
-                            setTimeout(() => {
-                                diagramResultsRef.current.set(toolCall.toolCallId, {
-                                    xml,
-                                    runtime: selectedModel ?? undefined,
-                                });
-                                setDiagramResultVersion((prev) => prev + 1);
-                            }, 0);
-                        }
+                        // 立即渲染到画布
+                        await handleDiagramXml(xml, {
+                            origin: "display",
+                            modelRuntime: selectedModel ?? undefined,
+                        });
+                        
+                        // 同时保存到 diagramResultsRef 供后续使用
+                        diagramResultsRef.current.set(toolCall.toolCallId, {
+                            xml,
+                            runtime: selectedModel ?? undefined,
+                        });
+                        setDiagramResultVersion((prev) => prev + 1);
                         
                         // 立即清除 input 中的 XML，避免在 DOM 中显示大量内容
                         if (toolCall.input && typeof toolCall.input === "object") {
@@ -314,7 +328,7 @@ export default function ChatPanelOptimized({
                             tool: "display_diagram",
                             toolCallId: toolCall.toolCallId,
                             output:
-                                "Diagram XML captured. Use the message action to apply it to the canvas.",
+                                "Diagram rendered to canvas successfully.",
                         });
                     } catch (error) {
                         const message =
@@ -400,7 +414,7 @@ export default function ChatPanelOptimized({
         handleDiagramXml,
         getLatestDiagramXml,
         messages,
-        modelOptions,
+        modelOptions: modelOptions,
         selectedModelKey,
     });
 
@@ -472,6 +486,7 @@ export default function ChatPanelOptimized({
                     body: {
                         xml: chartXml,
                         modelRuntime: selectedModel,
+                        enableStreaming: selectedModel?.isStreaming ?? false,
                     },
                 }
             );
@@ -600,6 +615,7 @@ export default function ChatPanelOptimized({
                         body: {
                             xml: chartXml,
                             modelRuntime: selectedModel,
+                            enableStreaming: selectedModel?.isStreaming ?? false,
                         },
                     }
                 );
@@ -674,6 +690,7 @@ export default function ChatPanelOptimized({
                 body: {
                     xml: chartXml,
                     modelRuntime: selectedModel,
+                    enableStreaming: selectedModel?.isStreaming ?? false,
                 },
             }
         );
@@ -1113,7 +1130,10 @@ export default function ChatPanelOptimized({
                                 </span>
                             </div>
                         )}
-                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white/90 px-2 py-2">
+                        <div 
+                            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white/90 px-2 py-2"
+                            style={{ maxHeight: '100%' }}
+                        >
                             <ChatMessageDisplay
                                 messages={messages}
                                 error={error}
@@ -1223,6 +1243,7 @@ export default function ChatPanelOptimized({
                     modelOptions={modelOptions}
                     onModelChange={selectModel}
                     onManageModels={() => setIsModelConfigOpen(true)}
+                    onModelStreamingChange={handleModelStreamingChange}
                     onCompareRequest={async () => {
                         if (!input.trim()) {
                             return;

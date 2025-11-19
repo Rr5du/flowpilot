@@ -17,6 +17,8 @@ import { TokenUsageDisplay } from "./token-usage-display";
 
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3000;
 const CHAR_COUNT_FORMATTER = new Intl.NumberFormat("zh-CN");
+// 智能图表生成超时检测时间（毫秒）- 5分钟
+const DIAGRAM_GENERATION_TIMEOUT_MS = 300000;
 
 interface ChatMessageDisplayProps {
     messages: UIMessage[];
@@ -90,17 +92,66 @@ const DiagramToolCard = memo(({
     const [toolCallError, setToolCallError] = useState<string | null>(null);
     const previousXmlRef = useRef<string>("");
     const [localState, setLocalState] = useState<string>(state || "pending");
+    const [autoCompletedByStreamEnd, setAutoCompletedByStreamEnd] = useState(false);
+    const [showTimeoutHint, setShowTimeoutHint] = useState(false);
+    const streamingStartTimeRef = useRef<number | null>(null);
+
+    const displayDiagramXml = diagramResult?.xml || 
+        (typeof input?.xml === "string" ? input.xml : null);
+    const displayDiagramXmlLength = displayDiagramXml?.length ?? 0;
 
     // 同步外部状态
     useEffect(() => {
         if (state) {
             setLocalState(state);
+            // 重置超时提示
+            if (state !== "input-streaming") {
+                setShowTimeoutHint(false);
+                streamingStartTimeRef.current = null;
+            }
         }
     }, [state]);
 
-    const displayDiagramXml = diagramResult?.xml || 
-        (typeof input?.xml === "string" ? input.xml : null);
-    const displayDiagramXmlLength = displayDiagramXml?.length ?? 0;
+    // 记录 streaming 开始时间
+    useEffect(() => {
+        if (localState === "input-streaming" && streamingStartTimeRef.current === null) {
+            streamingStartTimeRef.current = Date.now();
+        }
+    }, [localState]);
+
+    // 超时检测机制（5分钟）
+    useEffect(() => {
+        if (localState !== "input-streaming" || !streamingStartTimeRef.current) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            const elapsed = Date.now() - (streamingStartTimeRef.current || 0);
+            if (elapsed >= DIAGRAM_GENERATION_TIMEOUT_MS && localState === "input-streaming") {
+                // 5分钟后仍在 streaming 状态，显示超时提示
+                setShowTimeoutHint(true);
+            }
+        }, DIAGRAM_GENERATION_TIMEOUT_MS);
+
+        return () => clearTimeout(timer);
+    }, [localState]);
+
+    // 流结束自动完成机制：
+    // 当整体流式响应结束（isGenerationBusy 从 true 变为 false）且工具调用仍处于 input-streaming 状态时，
+    // 自动将状态更新为 output-available，避免因 token 限制导致的状态卡死
+    useEffect(() => {
+        if (
+            !isGenerationBusy && 
+            !isComparisonRunning &&
+            localState === "input-streaming" &&
+            displayDiagramXml &&
+            displayDiagramXml.length > 0
+        ) {
+            // 流已结束，但工具调用状态仍为 streaming，自动标记为完成
+            setLocalState("output-available");
+            setAutoCompletedByStreamEnd(true);
+        }
+    }, [isGenerationBusy, isComparisonRunning, localState, displayDiagramXml]);
 
     // 流式渲染：在streaming状态下实时应用图表
     useEffect(() => {
@@ -133,9 +184,20 @@ const DiagramToolCard = memo(({
         if (onRetry) {
             setLocalState("pending");
             setToolCallError(null);
+            setAutoCompletedByStreamEnd(false);
+            setShowTimeoutHint(false);
+            streamingStartTimeRef.current = null;
             onRetry();
         }
     }, [onRetry]);
+
+    const handleManualComplete = useCallback(() => {
+        if (displayDiagramXml && displayDiagramXml.length > 0) {
+            setLocalState("output-available");
+            setAutoCompletedByStreamEnd(true);
+            setShowTimeoutHint(false);
+        }
+    }, [displayDiagramXml]);
 
     const currentState = localState || state;
 
@@ -175,6 +237,9 @@ const DiagramToolCard = memo(({
             return "图表生成已暂停，可以点击「重新生成」继续。";
         }
         if (currentState === "output-available") {
+            if (autoCompletedByStreamEnd) {
+                return "流式输出已结束，图表已自动应用到画布。";
+            }
             return "图表生成完成，已实时渲染到画布。";
         }
         if (currentState === "input-streaming") {
@@ -201,6 +266,22 @@ const DiagramToolCard = memo(({
             <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[13px] leading-relaxed text-slate-700">
                 {statusMessage}
             </div>
+            {/* 超时提示 */}
+            {showTimeoutHint && currentState === "input-streaming" && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <div className="flex items-start gap-2">
+                        <svg className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1">
+                            <div className="font-medium">长时间无响应</div>
+                            <div className="mt-0.5 text-amber-700">
+                                流式输出可能已结束，但状态未更新。如果画布已显示图表，可以点击下方按钮应用当前结果。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
                 {currentState === "input-streaming" && (
                     <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
@@ -233,6 +314,16 @@ const DiagramToolCard = memo(({
                         className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
                     >
                         暂停生成
+                    </button>
+                )}
+                {/* 超时手动完成按钮 */}
+                {showTimeoutHint && currentState === "input-streaming" && displayDiagramXml && (
+                    <button
+                        type="button"
+                        onClick={handleManualComplete}
+                        className="inline-flex items-center rounded-full border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                        应用当前图表
                     </button>
                 )}
             </div>
@@ -1256,6 +1347,21 @@ export function ChatMessageDisplay({
                             </div>
                         ))}
                 </>
+            )}
+            {/* 显示生成中的 loading 提示 */}
+            {isGenerationBusy && (
+                <div className="flex justify-start mb-5">
+                    <div className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm border border-slate-200">
+                        <div className="flex space-x-1">
+                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-sm text-slate-600 font-medium">
+                            正在绘制中...
+                        </span>
+                    </div>
+                </div>
             )}
             {error && (
                 <div className="text-red-500 text-sm mt-2">
