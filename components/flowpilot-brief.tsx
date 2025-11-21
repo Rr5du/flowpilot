@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 
 export type BriefIntentId = "draft" | "polish" | "explain";
-export type BriefToneId = "balanced" | "playful" | "enterprise" | "sketch";
+export type BriefToneId = "balanced" | "playful" | "enterprise" | "sketch" | "blueprint";
 export type BriefFocusId = "swimlane" | "dataflow" | "story";
 export type BriefGuardrailId = "singleViewport" | "respectLabels" | "contrast";
 export type BriefDiagramTypeId =
@@ -41,6 +41,14 @@ export type FlowPilotBriefState = {
     focus: BriefFocusId[];
     diagramTypes: BriefDiagramTypeId[];
     guardrails: BriefGuardrailId[];
+};
+
+export const DEFAULT_BRIEF_STATE: FlowPilotBriefState = {
+    intent: "draft",
+    tone: "balanced",
+    focus: ["swimlane"],
+    diagramTypes: ["sequence", "activity"],
+    guardrails: ["singleViewport", "respectLabels"],
 };
 
 type Option<T extends string> = {
@@ -78,27 +86,38 @@ export const INTENT_OPTIONS: Option<BriefIntentId>[] = [
 export const TONE_OPTIONS: Option<BriefToneId>[] = [
     {
         id: "balanced",
-        title: "产品规范",
-        description: "中性灰 + 微配色",
-        prompt: "采用中性灰与轻配色，保持企业级产品质感。",
+        title: "中性简约",
+        description: "清晰、专业、通用",
+        prompt:
+            "Modern neutral design: Clean white/light gray background with systematic neutral color palette (gray-50 to gray-900). Use single primary accent color (blue/indigo) for emphasis. Apply 8px border-radius, 1-2px strokes, subtle shadows (0 1px 3px rgba(0,0,0,0.1)). Maintain 4.5:1 minimum contrast ratio for accessibility. Align to 8px grid system. Keep visual hierarchy clear with consistent spacing and typography.",
     },
     {
         id: "playful",
-        title: "创意手稿",
-        description: "更自由的排线",
-        prompt: "允许更大胆的色块与手写式注释，强调灵感感。",
+        title: "活力多彩",
+        description: "友好、轻松、有趣",
+        prompt:
+            "Vibrant friendly design: Use 2-3 complementary colors from a balanced palette with soft gradients (linear 10-20%). Apply rounded corners (12-16px radius) and generous spacing (16-24px). Include subtle playful elements like soft shadows, gentle animations hints. Maintain warm, approachable tone while keeping text readable. Use friendly sans-serif fonts with good line-height (1.5-1.6).",
     },
     {
         id: "enterprise",
-        title: "汇报精简",
-        description: "干净、适合幻灯片",
-        prompt: "控制元素数量，偏右上角留白，适合直接投影展示。",
+        title: "企业专业",
+        description: "权威、严谨、可信",
+        prompt:
+            "Professional enterprise design: Conservative color scheme with navy/slate primary and limited accent usage. Generous white space (margins ≥40px), strong grid alignment. Use bold typography hierarchy with clear headings. Limit visual elements to ≤10 key components per viewport. Emphasize data clarity over decoration. Apply orthogonal layouts with clean, block-style arrows. Ensure high contrast (7:1) for critical information.",
     },
     {
         id: "sketch",
-        title: "草稿手绘",
-        description: "draw.io 草稿风格",
-        prompt: "切换到 draw.io 草稿主题，使用粗描边、淡手绘色块与手写字体风格，强调草稿临摹感。",
+        title: "手绘草图",
+        description: "创意、灵活、非正式",
+        prompt:
+            "Hand-drawn sketch style: Use rough, organic strokes (2-3px varied width) with sketch-like shapes. Apply hand-drawn fonts or casual sans-serif. Include subtle texture and imperfect alignment for authentic feel. Use muted pastel colors with pencil-like outlines. Allow playful annotations, arrows, and callouts. Emphasize creative brainstorming atmosphere over precision.",
+    },
+    {
+        id: "blueprint",
+        title: "技术蓝图",
+        description: "精确、技术、极简",
+        prompt:
+            "Technical blueprint design: Off-white or light blue-tinted background with precise charcoal/dark blue lines (1px). Use monospace or technical sans-serif fonts. Apply tight grid alignment (4px precision) with minimal decorative elements. Include single accent color (cyan/electric blue) for highlights only. No gradients or shadows. Emphasize technical accuracy, measurements, and structural clarity. Think architectural/engineering documentation.",
     },
 ];
 
@@ -240,9 +259,6 @@ export function FlowPilotBrief({
                     <Sparkles className="h-4 w-4 text-amber-500" />
                     FlowPilot Brief
                 </div>
-                <p className="text-sm text-slate-600">
-                    先设定目标、调性与关注点，AI 会带着这些偏好执行每一次修改。
-                </p>
             </div>
 
             <section className="mb-4">
@@ -328,7 +344,7 @@ export function FlowPilotBrief({
                                     "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
                                     isActive
                                         ? "border-emerald-500 bg-emerald-50"
-                                        : "border-slate-200 bg-white hover:border-slate-400"
+                                        : "border-slate-200 bg-white hover-border-slate-400"
                                 )}
                                 onClick={() => handleFocusToggle(option.id)}
                             >
@@ -361,7 +377,7 @@ export function FlowPilotBrief({
                                     "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
                                     isActive
                                         ? "border-indigo-500 bg-indigo-50"
-                                        : "border-slate-200 bg-white hover:border-slate-400"
+                                        : "border-slate-200 bg-white hover-border-slate-400"
                                 )}
                                 onClick={() => handleDiagramTypeToggle(option.id)}
                             >
@@ -394,7 +410,7 @@ export function FlowPilotBrief({
                                     "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
                                     isActive
                                         ? "border-amber-500 bg-amber-50 text-amber-700"
-                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                                        : "border-slate-200 bg-white text-slate-600 hover-border-slate-400"
                                 )}
                                 onClick={() => handleGuardrailToggle(option.id)}
                             >
@@ -436,7 +452,7 @@ export function FlowPilotBriefDialog({
                 <DialogHeader>
                     <DialogTitle>FlowPilot Brief 偏好配置</DialogTitle>
                     <DialogDescription>
-                        配置图表创作意图、调性与护栏，所有后续请求都会带着这些偏好执行。
+                        先设定目标、调性与关注点，AI 会带着这些偏好执行每一次修改。
                     </DialogDescription>
                 </DialogHeader>
                 <FlowPilotBrief state={state} onChange={onChange} disabled={disabled} />
