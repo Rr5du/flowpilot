@@ -163,18 +163,35 @@ export async function POST(req: Request) {
         const resolvedModel = resolveChatModel(modelRuntime);
 
         const patternHints = `
-可选布局灵感：
-- Hero Banner + 亮色年份徽章 + 底部 KPI
-- 左图右文（图为渐变圆角、文案为要点卡）
-- 中心圆/徽章 + 4 个辐射卫星卡片
-- 时间轴丝带（水平或环形）+ 里程碑点
-- 双列对比（左“现状”、右“规划”）
-- 环形/阶梯式步骤 + 箭头指引
-- 数据面板 + 侧边注释卡
+LAYOUT INSPIRATION PATTERNS:
+
+Hero Layouts:
+- Hero Banner: Large heading + accent badge/year + bottom KPI metrics
+- Visual + Text Split: Left (gradient rounded image) + Right (bullet card)
+
+Radial & Hub Layouts:
+- Central Hub: Center circle/badge + 4 radiating satellite cards
+- Circular Timeline: Ring arrangement with milestone markers
+
+Process & Flow:
+- Horizontal Timeline: Ribbon-style with milestone points
+- Stepped Progression: Staircase/ladder steps with directional arrows
+- Dual-Column Comparison: Left "Current State" vs Right "Future Plan"
+
+Data & Metrics:
+- Dashboard Panel: Metric cards + side annotation callouts
+- KPI Grid: 2×2 or 3×2 metric cards with icons
+
+DESIGN PRINCIPLES:
+- Choose layout based on content type and narrative intent
+- Vary layouts between consecutive slides for visual rhythm
+- Use generous white space (40-60px between major elements)
+- Limit to 1-2 visual concepts per slide for clarity
+- Apply consistent padding within cards (20-30px)
 `.trim();
 
         const userPrompt = `
-请为以下幻灯片生成 ${renderMode === "svg" ? "SVG" : "draw.io XML"}。务必参考 layoutTone 与 pattern hints，自由组合但保持 PPT 质感与创意：
+Generate ${renderMode === "svg" ? "SVG" : "draw.io XML"} for the following slide. Reference layoutTone and pattern hints. Combine layouts creatively while maintaining professional PPT aesthetics:
 ${JSON.stringify(
     {
         slide,
