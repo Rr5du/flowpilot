@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+    ChevronDown,
+    ChevronUp,
     Figma,
     LayoutDashboard,
     Settings2,
@@ -23,6 +25,7 @@ export type BriefIntentId = "draft" | "polish" | "explain";
 export type BriefToneId = "balanced" | "playful" | "enterprise" | "sketch" | "blueprint";
 export type BriefFocusId = "clarity" | "flow" | "hierarchy";
 export type BriefDiagramTypeId =
+    | "auto"
     | "sequence"
     | "activity"
     | "component"
@@ -43,7 +46,7 @@ export const DEFAULT_BRIEF_STATE: FlowPilotBriefState = {
     intent: "draft",
     tone: "balanced",
     focus: ["clarity"],
-    diagramTypes: ["activity"],
+    diagramTypes: ["auto"],
 };
 
 type Option<T extends string> = {
@@ -136,8 +139,14 @@ export const FOCUS_OPTIONS: Option<BriefFocusId>[] = [
     },
 ];
 
-// DIAGRAM_TYPE 保持不变 - 这些是标准图表类型
+// DIAGRAM_TYPE - 添加"自动识别"作为推荐选项
 export const DIAGRAM_TYPE_OPTIONS: Option<BriefDiagramTypeId>[] = [
+    {
+        id: "auto",
+        title: "智能识别",
+        description: "AI自动选择最合适的图表类型",
+        prompt: "Automatically select the most appropriate diagram type based on user requirements and content. Consider: workflow needs → activity diagram, system interactions → sequence diagram, architecture → component/deployment diagram, concepts → mind map, user experience → journey map, timeline → Gantt chart.",
+    },
     {
         id: "activity",
         title: "活动流程",
@@ -202,6 +211,8 @@ export function FlowPilotBrief({
     onChange,
     disabled = false,
 }: FlowPilotBriefProps) {
+    const [showAllDiagramTypes, setShowAllDiagramTypes] = useState(false);
+
     const handleFocusToggle = (focusId: BriefFocusId) => {
         const exists = state.focus.includes(focusId);
         const next = exists
@@ -217,6 +228,11 @@ export function FlowPilotBrief({
             : [...state.diagramTypes, diagramTypeId];
         onChange({ diagramTypes: next });
     };
+
+    // 分离"智能识别"和其他具体类型
+    const autoOption = DIAGRAM_TYPE_OPTIONS.find(opt => opt.id === "auto");
+    const specificOptions = DIAGRAM_TYPE_OPTIONS.filter(opt => opt.id !== "auto");
+    const displayedOptions = showAllDiagramTypes ? specificOptions : [];
 
     return (
         <div className="rounded-2xl border bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-sm">
@@ -327,36 +343,94 @@ export function FlowPilotBrief({
             </section>
 
             <section>
-                <div className="mb-2 flex items-ce2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Workflow className="h-4 w-4" />
+                <div
+                    className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <Workflow className="h-4 w-4"/>
                     图表类型
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                    {DIAGRAM_TYPE_OPTIONS.map((option) => {
-                        const isActive = state.diagramTypes.includes(option.id);
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                disabled={disabled}
-                                className={cn(
-                                    "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
-                                    isActive
-                                        ? "border-indigo-500 bg-indigo-50"
-                                        : "border-slate-200 bg-white hover:border-slate-400"
-                                )}
-                                onClick={() => handleDiagramTypeToggle(option.id)}
-                            >
-                                <p className="text-sm font-semibold text-slate-900">
-                                    {option.title}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    {option.description}
-                                </p>
-                            </button>
-                        );
-                    })}
-                </div>
+                
+                {/* 智能识别选项 - 推荐 */}
+                {autoOption && (
+                    <div className="mb-2">
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            className={cn(
+                                "w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                state.diagramTypes.includes(autoOption.id)
+                                    ? "border-indigo-500 bg-indigo-50 shadow-sm"
+                                    : "border-slate-200 bg-white hover:border-slate-400"
+                            )}
+                            onClick={() => handleDiagramTypeToggle(autoOption.id)}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold text-slate-900">
+                                            {autoOption.title}
+                                        </p>
+                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                            推荐
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {autoOption.description}
+                                    </p>
+                                </div>
+                                <Sparkles className="h-4 w-4 text-indigo-500" />
+                            </div>
+                        </button>
+                    </div>
+                )}
+
+                {/* 展开/收起按钮 */}
+                <button
+                    type="button"
+                    onClick={() => setShowAllDiagramTypes(!showAllDiagramTypes)}
+                    className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                >
+                    {showAllDiagramTypes ? (
+                        <>
+                            <ChevronUp className="h-3.5 w-3.5" />
+                            收起具体类型
+                        </>
+                    ) : (
+                        <>
+                            <ChevronDown className="h-3.5 w-3.5" />
+                            显示具体类型 ({specificOptions.length}个)
+                        </>
+                    )}
+                </button>
+
+                {/* 具体图表类型 - 可折叠 */}
+                {showAllDiagramTypes && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        {displayedOptions.map((option) => {
+                            const isActive = state.diagramTypes.includes(option.id);
+                            return (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    disabled={disabled}
+                                    className={cn(
+                                        "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                        isActive
+                                            ? "border-indigo-500 bg-indigo-50"
+                                            : "border-slate-200 bg-white hover:border-slate-400"
+                                    )}
+                                    onClick={() => handleDiagramTypeToggle(option.id)}
+                                >
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {option.title}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {option.description}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </section>
         </div>
     );
