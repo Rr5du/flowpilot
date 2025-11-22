@@ -153,9 +153,8 @@ export const FLOW_SHOWCASE_PRESETS: FlowShowcasePreset[] = [
         brief: {
             intent: "draft",
             tone: "sketch",
-            focus: ["story"],
+            focus: ["hierarchy"],
             diagramTypes: ["journey", "mindmap"],
-            guardrails: ["singleViewport", "contrast"],
         },
     },
     {
@@ -174,9 +173,8 @@ export const FLOW_SHOWCASE_PRESETS: FlowShowcasePreset[] = [
         brief: {
             intent: "draft",
             tone: "enterprise",
-            focus: ["dataflow", "swimlane"],
+            focus: ["flow", "clarity"],
             diagramTypes: ["component", "deployment"],
-            guardrails: ["singleViewport", "respectLabels"],
         },
     },
     {
@@ -195,9 +193,8 @@ export const FLOW_SHOWCASE_PRESETS: FlowShowcasePreset[] = [
         brief: {
             intent: "draft",
             tone: "balanced",
-            focus: ["story"],
+            focus: ["clarity"],
             diagramTypes: ["journey", "activity"],
-            guardrails: ["singleViewport", "contrast"],
         },
     },
     {
@@ -216,9 +213,8 @@ export const FLOW_SHOWCASE_PRESETS: FlowShowcasePreset[] = [
         brief: {
             intent: "polish",
             tone: "balanced",
-            focus: ["swimlane", "dataflow"],
+            focus: ["flow", "clarity"],
             diagramTypes: ["activity", "state"],
-            guardrails: ["singleViewport", "respectLabels"],
         },
     },
 ];

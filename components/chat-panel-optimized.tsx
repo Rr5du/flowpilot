@@ -47,7 +47,6 @@ import {
     FlowPilotBriefState,
     DEFAULT_BRIEF_STATE,
     FOCUS_OPTIONS,
-    GUARDRAIL_OPTIONS,
     INTENT_OPTIONS,
     TONE_OPTIONS,
     DIAGRAM_TYPE_OPTIONS,
@@ -222,9 +221,6 @@ export default function ChatPanelOptimized({
         const diagramTypeMeta = DIAGRAM_TYPE_OPTIONS.filter((option) =>
             briefState.diagramTypes.includes(option.id)
         );
-        const guardrailMeta = GUARDRAIL_OPTIONS.filter((option) =>
-            briefState.guardrails.includes(option.id)
-        );
 
         const segments: string[] = [];
         const badges: string[] = [];
@@ -253,12 +249,6 @@ export default function ChatPanelOptimized({
                 badges.push(`图型·${item.title}`)
             );
         }
-        if (guardrailMeta.length > 0) {
-            segments.push(
-                `护栏：${guardrailMeta.map((item) => item.prompt).join("；")}`
-            );
-            guardrailMeta.forEach((item) => badges.push(`护栏·${item.title}`));
-        }
 
         const prompt =
             segments.length > 0
@@ -274,8 +264,8 @@ export default function ChatPanelOptimized({
             ? briefContext.badges
             : [
                   "模式·空白起稿",
-                  "视觉·产品规范",
-                  "护栏·单屏锁定",
+                  "视觉·中性简约",
+                  "重点·简洁清晰",
               ];
     const briefSummary = briefDisplayBadges.slice(0, 3).join(" · ");
 
