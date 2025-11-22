@@ -44,7 +44,7 @@ export function useSlideGeneration({
     );
 
     const runGeneration = useCallback(
-        async (targets: SlideBlueprint[]) => {
+        async (targets: SlideBlueprint[], renderMode: "drawio" | "svg" = "drawio") => {
             if (!blueprint) {
                 throw new Error("尚未生成 PPT 骨架。");
             }
@@ -111,6 +111,7 @@ export function useSlideGeneration({
                             blueprintContext: context,
                             styleLocks,
                             modelRuntime,
+                            renderMode,
                         });
                         updateSlideJob(current.id, {
                             status: "ready",
@@ -144,24 +145,24 @@ export function useSlideGeneration({
     );
 
     const generateSlides = useCallback(
-        async (slideIds?: string[]) => {
+        async (slideIds?: string[], renderMode: "drawio" | "svg" = "drawio") => {
             if (!blueprint) {
                 throw new Error("尚未生成 PPT 骨架。");
             }
             const targets = slideIds?.length
                 ? slides.filter((slide) => slideIds.includes(slide.id))
                 : slides;
-            await runGeneration(targets);
+            await runGeneration(targets, renderMode);
         },
         [blueprint, slides, runGeneration]
     );
 
-    const generatePendingSlides = useCallback(async () => {
+    const generatePendingSlides = useCallback(async (renderMode: "drawio" | "svg" = "drawio") => {
         if (!blueprint) return;
         const targets = slides.filter((slide) =>
             pendingSlideIds.includes(slide.id)
         );
-        await runGeneration(targets);
+        await runGeneration(targets, renderMode);
     }, [blueprint, slides, pendingSlideIds, runGeneration]);
 
     return {
@@ -169,5 +170,6 @@ export function useSlideGeneration({
         generatePendingSlides,
         isRunning,
         lastError,
+        runGeneration,
     };
 }

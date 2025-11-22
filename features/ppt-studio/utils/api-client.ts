@@ -31,6 +31,7 @@ export interface SlideRenderPayload {
     blueprintContext: SlideRenderContext;
     styleLocks: StyleOverrides;
     modelRuntime: RuntimeModelConfig;
+    renderMode?: "drawio" | "svg";
 }
 
 export async function requestPptBlueprint({

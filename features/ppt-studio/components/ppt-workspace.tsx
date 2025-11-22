@@ -54,6 +54,7 @@ export function PptWorkspace({
     const [renderError, setRenderError] = useState<string | null>(null);
     const [isBundling, setIsBundling] = useState(false);
     const [isExportingPptx, setIsExportingPptx] = useState(false);
+    const [renderMode, setRenderMode] = useState<"drawio" | "svg">("drawio");
 
     const {
         generateSlides,
@@ -231,13 +232,13 @@ export function PptWorkspace({
                 {step === "render" && (
                     <SlideComposer
                         onGenerateAll={() =>
-                            withRenderError(() => generateSlides())
+                            withRenderError(() => generateSlides(undefined, renderMode))
                         }
                         onGeneratePending={() =>
-                            withRenderError(() => generatePendingSlides())
+                            withRenderError(() => generatePendingSlides(renderMode))
                         }
                         onGenerateSingle={(slideId) =>
-                            withRenderError(() => generateSlides([slideId]))
+                            withRenderError(() => generateSlides([slideId], renderMode))
                         }
                         isGenerating={isRendering}
                         onExportBundle={handleExportBundle}
@@ -249,6 +250,8 @@ export function PptWorkspace({
                         onModelChange={onModelChange}
                         onManageModels={onManageModels}
                         renderError={renderError}
+                        renderMode={renderMode}
+                        onRenderModeChange={setRenderMode}
                     />
                 )}
                 {!blueprint && step !== "brief" && (

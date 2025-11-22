@@ -8,6 +8,7 @@ import {
     RefreshCcw,
     Download,
     Shield,
+    Palette,
 } from "lucide-react";
 import { usePptStudio } from "@/contexts/ppt-studio-context";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ interface SlideComposerProps {
     onModelChange: (key: string) => void;
     onManageModels: () => void;
     renderError?: string | null;
+    onRenderModeChange?: (mode: "drawio" | "svg") => void;
+    renderMode?: "drawio" | "svg";
 }
 
 const STATUS_STYLES: Record<
@@ -99,6 +102,8 @@ export function SlideComposer({
     onModelChange,
     onManageModels,
     renderError,
+    renderMode = "drawio",
+    onRenderModeChange,
 }: SlideComposerProps) {
     const { blueprint, slideJobs, styleLocks, updateStyleLocks } = usePptStudio();
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -162,12 +167,36 @@ export function SlideComposer({
                         <span className="text-xs text-slate-400">
                             优先选择具备画图能力的模型
                         </span>
-                        <ModelSelector
-                            selectedModelKey={selectedModelKey}
-                            onModelChange={onModelChange}
-                            models={models}
-                            onManage={onManageModels}
-                        />
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 rounded-full border border-slate-200 px-2 py-1">
+                                <span className="text-[11px] font-semibold text-slate-500">
+                                    模式
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        onRenderModeChange?.(
+                                            renderMode === "svg" ? "drawio" : "svg"
+                                        )
+                                    }
+                                    className={cn(
+                                        "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold transition",
+                                        renderMode === "svg"
+                                            ? "bg-slate-900 text-white"
+                                            : "bg-white text-slate-600 hover:bg-slate-100"
+                                    )}
+                                >
+                                    <Palette className="h-3.5 w-3.5" />
+                                    {renderMode === "svg" ? "SVG" : "draw.io"}
+                                </button>
+                            </div>
+                            <ModelSelector
+                                selectedModelKey={selectedModelKey}
+                                onModelChange={onModelChange}
+                                models={models}
+                                onManage={onManageModels}
+                            />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
