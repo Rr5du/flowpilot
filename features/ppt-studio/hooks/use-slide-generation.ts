@@ -19,7 +19,13 @@ interface SlideGenerationResult {
 
 export function useSlideGeneration({
     modelRuntime,
-}: UseSlideGenerationOptions): SlideGenerationResult {
+}: UseSlideGenerationOptions): {
+    generatePendingSlides: (renderMode?: ("drawio" | "svg")) => Promise<void>;
+    lastError: string | null;
+    generateSlides: (slideIds?: string[], renderMode?: ("drawio" | "svg")) => Promise<void>;
+    isRunning: boolean;
+    runGeneration: (targets: SlideBlueprint[], renderMode?: ("drawio" | "svg")) => Promise<void>
+} {
     const {
         blueprint,
         slideJobs,
