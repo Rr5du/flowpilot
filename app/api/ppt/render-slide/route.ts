@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { z } from "zod";
 import { resolveChatModel } from "@/lib/server-models";
+import { buildSvgRootXml } from "@/lib/svg";
 import {
     slideBlueprintSchema,
     styleOverridesSchema,
@@ -30,6 +31,7 @@ const requestSchema = z.object({
             .optional(),
     }),
     styleLocks: styleOverridesSchema,
+    renderMode: z.enum(["drawio", "svg"]).default("drawio").optional(),
     modelRuntime: z.object({
         modelId: z.string(),
         baseUrl: z.string(),
@@ -39,38 +41,125 @@ const requestSchema = z.object({
 });
 
 const SYSTEM_MESSAGE = `
-你是 FlowPilot Studio 的资深可视化工程师，负责生成高级质感的 draw.io 幻灯片。
-要求：
-1. 产出完整的 <mxfile>……</mxfile> 结构，仅包含一个 <diagram>，画布尺寸约 1280x720。
-2. 所有元素必须落在单页坐标系内（x:20-780, y:20-560），保持整洁布局并预留 20-30px 安全边距。
-3. 使用统一配色、字体、图标语言，严格遵循主题指引与 styleLocks；尤其要解读 styleLocks.layoutTone，并把其中的语气/材质实现出来。
-4. 版式必须像真实 PPT：设置顶部标题/副标题区，内容区域使用 1-3 个圆角卡片或分栏容器（rounded=1; arcSize≈12; shadow=1; fillColor 取自 palette），辅以轻微阴影、背景面板或玻璃拟态效果，避免普通流程图样式。
-5. 结合以下布局词库，根据 slide.visualIdea/narrative 自动挑选/组合，避免连续两页完全相同：{「Hero + KPI」、「双列故事线」、「环形步骤」、「中央徽章 + 卫星卡片」、「浮层路线图」、「对称对比表」、「时间轴 + 里程碑」、「数据面板 + 注释气泡」}。
-6. 可添加呼吸感背景（浅色/渐变/网格）、图标占位符、徽标/页脚条等元素，但请保持信息可读性，避免杂乱连线。
-7. 文案必须被组织成信息块：KPI 卡、步骤卡、要点列表、时间轴等；根据内容类型选择最合适的结构，不必拘泥于矩形排布。
-8. 若上一页与当前页主题相似，请更换布局或对齐方式以保持节奏变化；必要时用细线箭头说明承接关系。
-9. 输出模板：
+You are a senior visual designer for FlowPilot Studio, specializing in creating professional, high-quality presentation slides using draw.io format.
+
+CORE REQUIREMENTS:
+
+1. OUTPUT STRUCTURE
+   - Generate complete <mxfile>...</mxfile> with single <diagram>
+   - Canvas size: 1280×720 (16:9 presentation aspect ratio)
+   - Coordinate bounds: x(20-1260), y(20-700) with 20-30px safety margins
+   - All elements must fit within single viewport - no scrolling
+
+2. PRESENTATION DESIGN STANDARDS
+   - Follow professional slide deck aesthetics, NOT flowchart diagrams
+   - Use layout zones: header (title/subtitle), main content area, footer
+   - Implement 1-3 content cards/columns with rounded corners (rounded=1; arcSize=12)
+   - Apply subtle shadows (shadow=1) and elegant backgrounds
+   - Maintain generous white space for visual breathing room
+   
+3. VISUAL CONSISTENCY
+   - Strictly follow themeGuidelines palette (fillColor, strokeColor, fontColor)
+   - Respect styleLocks constraints, especially layoutTone specifications
+   - Interpret and implement the tone/material feel from styleLocks.layoutTone
+   - Use systematic typography hierarchy (24-32px titles, 14-18px body text)
+   - Apply consistent iconography style throughout
+
+4. LAYOUT VOCABULARY - Choose based on slide content:
+   • Hero + KPI Cards: Large visual + metric callouts
+   • Two-Column Story: Left-right narrative flow
+   • Circular Timeline: Radial process steps
+   • Central Badge + Satellites: Hub-and-spoke structure
+   • Floating Roadmap: Layered timeline with milestones
+   • Comparison Matrix: Side-by-side contrast
+   • Timeline + Milestones: Linear progress visualization
+   • Dashboard + Annotations: Data panels with callout bubbles
+   
+5. CONTENT ORGANIZATION
+   - Structure information into semantic blocks: KPI cards, process steps, bullet lists, timelines
+   - Select appropriate layout based on content type (data → dashboard; process → timeline; comparison → matrix)
+   - Avoid generic rectangular arrangements - use creative, purposeful layouts
+   - If previous slide used similar structure, vary alignment/layout for rhythm
+   
+6. POLISH & REFINEMENT
+   - Add breathing backgrounds (subtle gradients/grids/textures)
+   - Include icon placeholders or simple geometric shapes
+   - Optional: brand logo, page footer, slide number
+   - Use connecting arrows sparingly and only when showing flow/relationship
+   - Maintain readability - never sacrifice clarity for decoration
+   
+7. ACCESSIBILITY
+   - Ensure 4.5:1 minimum contrast for text (7:1 for important information)
+   - Use font sizes ≥14px for body text
+   - Provide clear visual hierarchy with size, weight, and color
+
+OUTPUT FORMAT:
 XML:
-<mxfile>…</mxfile>
+<mxfile>...</mxfile>
 
 NOTES:
-- 对布局或内容的说明
+- Brief explanation of layout choices and design rationale
 `;
 
-function extractXmlPayload(text: string): { xml: string; notes?: string } {
+const SYSTEM_MESSAGE_SVG = `
+You are a senior visual designer for FlowPilot Studio, specializing in creating professional, high-quality presentation slides using SVG format.
+
+CORE REQUIREMENTS:
+
+1. OUTPUT STRUCTURE
+   - Generate complete self-contained <svg> with no external dependencies
+   - Canvas: 1280×720 or equivalent viewBox mapping (16:9 aspect ratio)
+   - All elements within bounds (0-1280, 0-720) with 20-30px margins
+   - No scripts, events, or external resource links
+
+2. PRESENTATION DESIGN STANDARDS
+   - Professional slide deck aesthetics with clear information hierarchy
+   - Layout zones: header (title/subtitle) + 1-3 content cards/columns
+   - Rounded corners, subtle shadows, light gradients for depth
+   - Clear, non-overlapping information blocks
+   
+3. VISUAL CONSISTENCY
+   - Follow themeGuidelines and styleLocks specifications
+   - Interpret and implement layoutTone characteristics
+   - Restrained color palette with high text contrast
+   - Systematic spacing and alignment
+   
+4. ENHANCEMENT ELEMENTS
+   - Optional: Background textures or light grid patterns (not affecting readability)
+   - Dashed lines or arrows for transitions/connections when needed
+   - Accessibility: Minimum 4.5:1 contrast ratio, ≥14px text
+   
+OUTPUT FORMAT:
+SVG:
+<svg ...>...</svg>
+
+NOTES:
+- Brief explanation of layout choices and design rationale
+`;
+
+function extractPayload(text: string, mode: "drawio" | "svg"): { xml: string; notes?: string } {
+    const notesSection = text.split(/NOTES:/i)[1]?.trim();
+    if (mode === "svg") {
+        const svgMatch = text.match(/<svg[\s\S]+<\/svg>/i);
+        if (!svgMatch) {
+            throw new Error("未检测到有效的 SVG 内容。");
+        }
+        const svg = svgMatch[0];
+        const { rootXml } = buildSvgRootXml(svg);
+        const mxfile = `<mxfile><diagram name="Page-1" id="page-1"><mxGraphModel>${rootXml}</mxGraphModel></diagram></mxfile>`;
+        return { xml: mxfile, notes: notesSection };
+    }
     const xmlMatch = text.match(/<mxfile[\s\S]+<\/mxfile>/i);
     if (!xmlMatch) {
         throw new Error("未检测到有效的 mxfile 内容。");
     }
-    const xml = xmlMatch[0];
-    const notesSection = text.split(/NOTES:/i)[1]?.trim();
-    return { xml, notes: notesSection };
+    return { xml: xmlMatch[0], notes: notesSection };
 }
 
 export async function POST(req: Request) {
     try {
         const payload = requestSchema.parse(await req.json());
-        const { slide, blueprintContext, styleLocks, modelRuntime } = payload;
+        const { slide, blueprintContext, styleLocks, renderMode = "drawio", modelRuntime } = payload;
         const resolvedModel = resolveChatModel(modelRuntime);
 
         const patternHints = `
@@ -85,7 +174,7 @@ export async function POST(req: Request) {
 `.trim();
 
         const userPrompt = `
-请为以下幻灯片生成 draw.io XML。务必参考 layoutTone 与 pattern hints，自由组合但保持 PPT 质感与创意：
+请为以下幻灯片生成 ${renderMode === "svg" ? "SVG" : "draw.io XML"}。务必参考 layoutTone 与 pattern hints，自由组合但保持 PPT 质感与创意：
 ${JSON.stringify(
     {
         slide,
@@ -104,12 +193,12 @@ ${patternHints}
 
         const result = await generateText({
             model: resolvedModel.model,
-            system: SYSTEM_MESSAGE,
+            system: renderMode === "svg" ? SYSTEM_MESSAGE_SVG : SYSTEM_MESSAGE,
             prompt: userPrompt,
             temperature: 0.2,
         });
 
-        const { xml, notes } = extractXmlPayload(result.text);
+        const { xml, notes } = extractPayload(result.text, renderMode === "svg" ? "svg" : "drawio");
 
         return NextResponse.json({
             result: {
