@@ -13,8 +13,6 @@ import {
     PauseCircle,
     Sparkles,
 } from "lucide-react";
-import { LanguageSwitcher } from "@/components/language-switcher";
-
 import {
     Card,
     CardContent,
@@ -52,6 +50,7 @@ import {
     INTENT_OPTIONS,
     TONE_OPTIONS,
     DIAGRAM_TYPE_OPTIONS,
+    FLOWPILOT_FREEFORM_PROMPT,
 } from "./flowpilot-brief";
 import { ReportBlueprintTray } from "./report-blueprint-tray";
 import { CalibrationConsole } from "./calibration-console";
@@ -305,7 +304,19 @@ export default function ChatPanelOptimized({
         lastLoadedSvgResultIdRef.current = resultId;
     }, [isSvgMode, diagramResultVersion, loadSvgMarkup, updateActiveBranchDiagram]);
 
+    const briefMode = briefState.mode ?? "guided";
     const briefContext = useMemo(() => {
+        if (briefMode === "free") {
+            return {
+                prompt: FLOWPILOT_FREEFORM_PROMPT,
+                badges: [
+                    "自由·AI 自主选型",
+                    "默认·干净美观",
+                ],
+                mode: briefMode,
+            };
+        }
+
         const intentMeta = INTENT_OPTIONS.find(
             (option) => option.id === briefState.intent
         );
@@ -354,16 +365,21 @@ export default function ChatPanelOptimized({
                     .join("\\n")}`
                 : "";
 
-        return { prompt, badges };
-    }, [briefState]);
+        return { prompt, badges, mode: briefMode };
+    }, [briefMode, briefState]);
     const briefDisplayBadges =
         briefContext.badges.length > 0
             ? briefContext.badges
-            : [
-                "模式·空白起稿",
-                "视觉·中性简约",
-                "重点·简洁清晰",
-            ];
+            : briefMode === "free"
+                ? [
+                    "自由·AI 自主选型",
+                    "默认·干净美观",
+                ]
+                : [
+                    "模式·空白起稿",
+                    "视觉·中性简约",
+                    "重点·简洁清晰",
+                ];
     const briefSummary = briefDisplayBadges.slice(0, 3).join(" · ");
 
 
@@ -589,7 +605,7 @@ export default function ChatPanelOptimized({
         selectedModelKey,
         renderMode,
     });
-    const isComparisonAllowed = Boolean(selectedModel && !selectedModel.isStreaming);
+    const isComparisonAllowed = Boolean(selectedModel);
 
     const handleCopyXml = useCallback(
         async (xml: string) => {
@@ -699,6 +715,12 @@ export default function ChatPanelOptimized({
                 return "border-amber-200 bg-amber-50 text-amber-700";
             case "护栏":
                 return "border-emerald-200 bg-emerald-50 text-emerald-700";
+            case "自由":
+                return "border-sky-200 bg-sky-50 text-sky-700";
+            case "语法":
+                return "border-emerald-200 bg-emerald-50 text-emerald-700";
+            case "默认":
+                return "border-slate-200 bg-slate-50 text-slate-700";
             default:
                 return "border-slate-200 bg-slate-50 text-slate-700";
         }
@@ -1221,7 +1243,6 @@ export default function ChatPanelOptimized({
                                     </span>
                                 </a>
                             </div>
-                            <LanguageSwitcher />
                         </div>
                         <div className="flex items-center gap-1.5">
                             <a
@@ -1418,9 +1439,6 @@ export default function ChatPanelOptimized({
                                 onModelStreamingChange={handleModelStreamingChange}
                                 comparisonEnabled={isComparisonAllowed}
                                 onCompareRequest={async () => {
-                                    if (!isComparisonAllowed) {
-                                        return;
-                                    }
                                     if (!input.trim()) {
                                         return;
                                     }
@@ -1466,7 +1484,6 @@ export default function ChatPanelOptimized({
                                     setFiles([]);
                                 }}
                                 onOpenComparisonConfig={() => {
-                                    if (!isComparisonAllowed) return;
                                     setIsComparisonConfigOpen(true);
                                 }}
                                 isCompareLoading={isComparisonRunning}

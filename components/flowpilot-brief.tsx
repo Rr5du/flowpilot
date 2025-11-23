@@ -21,6 +21,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
+export type BriefModeId = "guided" | "free";
 export type BriefIntentId = "draft" | "polish" | "explain";
 export type BriefToneId = "balanced" | "playful" | "enterprise" | "sketch" | "blueprint";
 export type BriefFocusId = "clarity" | "flow" | "hierarchy";
@@ -36,6 +37,7 @@ export type BriefDiagramTypeId =
     | "gantt";
 
 export type FlowPilotBriefState = {
+    mode?: BriefModeId;
     intent: BriefIntentId;
     tone: BriefToneId;
     focus: BriefFocusId[];
@@ -43,6 +45,7 @@ export type FlowPilotBriefState = {
 };
 
 export const DEFAULT_BRIEF_STATE: FlowPilotBriefState = {
+    mode: "guided",
     intent: "draft",
     tone: "balanced",
     focus: ["clarity"],
@@ -55,6 +58,37 @@ type Option<T extends string> = {
     description: string;
     prompt: string;
 };
+
+const BRIEF_MODE_OPTIONS: {
+    id: BriefModeId;
+    title: string;
+    description: string;
+    helper: string;
+}[] = [
+    {
+        id: "guided",
+        title: "FlowBrief",
+        description: "",
+        helper: "",
+    },
+    {
+        id: "free",
+        title: "自由模式",
+        description: "",
+        helper: "",
+    },
+];
+
+export const FLOWPILOT_FREEFORM_GUARDRAILS = [
+    "保持画面干净美观，优先单屏阅读，不要堆叠或线路缠绕。",
+    "输出语法必须正确，连线完整、标签清晰，避免损坏的 XML/SVG。",
+    "完全依据用户输入自由选择图型与布局，不擅自添加业务假设。",
+];
+
+export const FLOWPILOT_FREEFORM_PROMPT = `默认出图守则（不附加 FlowBrief 偏好）：
+- Keep the canvas clean, readable, and balanced; avoid cluttered crossings.
+- Ensure syntax validity and connected arrows/labels; no broken XML/SVG/mermaid.
+- Choose whichever diagram type/layout best fits the user's text without adding extra assumptions.`;
 
 // INTENT 保持不变 - 这是核心功能
 export const INTENT_OPTIONS: Option<BriefIntentId>[] = [
@@ -212,6 +246,15 @@ export function FlowPilotBrief({
     disabled = false,
 }: FlowPilotBriefProps) {
     const [showAllDiagramTypes, setShowAllDiagramTypes] = useState(false);
+    const mode = state.mode ?? "guided";
+    const isFreeMode = mode === "free";
+    // 确保有默认的“智能识别”
+    useEffect(() => {
+        const autoOption = DIAGRAM_TYPE_OPTIONS.find((opt) => opt.id === "auto");
+        if (!isFreeMode && autoOption && state.diagramTypes.length === 0) {
+            onChange({ diagramTypes: [autoOption.id] });
+        }
+    }, [isFreeMode, onChange, state.diagramTypes]);
 
     const handleFocusToggle = (focusId: BriefFocusId) => {
         const exists = state.focus.includes(focusId);
@@ -246,11 +289,11 @@ export function FlowPilotBrief({
             <section className="mb-4">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <LayoutDashboard className="h-4 w-4" />
-                    任务模式
+                    出图模式
                 </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                    {INTENT_OPTIONS.map((option) => {
-                        const isActive = state.intent === option.id;
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {BRIEF_MODE_OPTIONS.map((option) => {
+                        const isActive = mode === option.id;
                         return (
                             <button
                                 key={option.id}
@@ -259,10 +302,10 @@ export function FlowPilotBrief({
                                 className={cn(
                                     "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
                                     isActive
-                                        ? "border-slate-900 bg-slate-900 text-white"
+                                        ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                                         : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
                                 )}
-                                onClick={() => onChange({ intent: option.id })}
+                                onClick={() => onChange({ mode: option.id })}
                             >
                                 <p className="text-sm font-semibold">
                                     {option.title}
@@ -275,163 +318,235 @@ export function FlowPilotBrief({
                                 >
                                     {option.description}
                                 </p>
-                            </button>
-                        );
-                    })}
-                </div>
-            </section>
-
-            <section className="mb-4">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Figma className="h-4 w-4" />
-                    视觉风格
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {TONE_OPTIONS.map((option) => {
-                        const isActive = state.tone === option.id;
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                disabled={disabled}
-                                className={cn(
-                                    "rounded-full border px-4 py-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
-                                    isActive
-                                        ? "border-slate-900 bg-slate-900 text-white shadow"
-                                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
-                                )}
-                                onClick={() => onChange({ tone: option.id })}
-                            >
-                                {option.title}
-                            </button>
-                        );
-                    })}
-                </div>
-            </section>
-
-            <section className="mb-4">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Sparkles className="h-4 w-4" />
-                    设计重点
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                    {FOCUS_OPTIONS.map((option) => {
-                        const isActive = state.focus.includes(option.id);
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                disabled={disabled}
-                                className={cn(
-                                    "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
-                                    isActive
-                                        ? "border-emerald-500 bg-emerald-50"
-                                        : "border-slate-200 bg-white hover:border-slate-400"
-                                )}
-                                onClick={() => handleFocusToggle(option.id)}
-                            >
-                                <p className="text-sm font-semibold text-slate-900">
-                                    {option.title}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    {option.description}
+                                <p
+                                    className={cn(
+                                        "mt-1 text-[11px]",
+                                        isActive ? "text-slate-200/80" : "text-slate-400"
+                                    )}
+                                >
+                                    {option.helper}
                                 </p>
                             </button>
                         );
                     })}
-          </div>
+                </div>
             </section>
 
-            <section>
-                <div
-                    className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Workflow className="h-4 w-4"/>
-                    图表类型
-                </div>
-                
-                {/* 智能识别选项 - 推荐 */}
-                {autoOption && (
-                    <div className="mb-2">
-                        <button
-                            type="button"
-                            disabled={disabled}
-                            className={cn(
-                                "w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
-                                state.diagramTypes.includes(autoOption.id)
-                                    ? "border-indigo-500 bg-indigo-50 shadow-sm"
-                                    : "border-slate-200 bg-white hover:border-slate-400"
-                            )}
-                            onClick={() => handleDiagramTypeToggle(autoOption.id)}
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm font-semibold text-slate-900">
-                                            {autoOption.title}
-                                        </p>
-                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                            推荐
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        {autoOption.description}
-                                    </p>
-                                </div>
-                                <Sparkles className="h-4 w-4 text-indigo-500" />
+            {isFreeMode ? (
+                <div className="space-y-3 rounded-xl border border-dashed border-slate-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-slate-800">
+                        自由模式：AI 直接按输入作图，不附加 FlowBrief。
+                    </p>
+                    <p className="text-xs text-slate-500">
+                        仅保留基础规范，确保结果清晰、整洁、语法正确。
+                    </p>
+                    <div className="flex flex-col gap-2">
+                        {FLOWPILOT_FREEFORM_GUARDRAILS.map((item, index) => (
+                            <div
+                                key={item}
+                                className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700"
+                            >
+                                <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
+                                    {index + 1}
+                                </span>
+                                <span className="leading-relaxed">{item}</span>
                             </div>
-                        </button>
+                        ))}
                     </div>
-                )}
+                </div>
+            ) : (
+                <>
+                    <section className="mb-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <LayoutDashboard className="h-4 w-4" />
+                            任务模式
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                            {INTENT_OPTIONS.map((option) => {
+                                const isActive = state.intent === option.id;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        disabled={disabled}
+                                        className={cn(
+                                            "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                            isActive
+                                                ? "border-slate-900 bg-slate-900 text-white"
+                                                : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
+                                        )}
+                                        onClick={() => onChange({ intent: option.id })}
+                                    >
+                                        <p className="text-sm font-semibold">
+                                            {option.title}
+                                        </p>
+                                        <p
+                                            className={cn(
+                                                "text-xs mt-0.5",
+                                                isActive ? "text-slate-200" : "text-slate-500"
+                                            )}
+                                        >
+                                            {option.description}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
 
-                {/* 展开/收起按钮 */}
-                <button
-                    type="button"
-                    onClick={() => setShowAllDiagramTypes(!showAllDiagramTypes)}
-                    className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-                >
-                    {showAllDiagramTypes ? (
-                        <>
-                            <ChevronUp className="h-3.5 w-3.5" />
-                            收起具体类型
-                        </>
-                    ) : (
-                        <>
-                            <ChevronDown className="h-3.5 w-3.5" />
-                            显示具体类型 ({specificOptions.length}个)
-                        </>
-                    )}
-                </button>
+                    <section className="mb-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <Figma className="h-4 w-4" />
+                            视觉风格
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {TONE_OPTIONS.map((option) => {
+                                const isActive = state.tone === option.id;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        disabled={disabled}
+                                        className={cn(
+                                            "rounded-full border px-4 py-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                            isActive
+                                                ? "border-slate-900 bg-slate-900 text-white shadow"
+                                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+                                        )}
+                                        onClick={() => onChange({ tone: option.id })}
+                                    >
+                                        {option.title}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
 
-                {/* 具体图表类型 - 可折叠 */}
-                {showAllDiagramTypes && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                        {displayedOptions.map((option) => {
-                            const isActive = state.diagramTypes.includes(option.id);
-                            return (
+                    <section className="mb-4">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <Sparkles className="h-4 w-4" />
+                            设计重点
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                            {FOCUS_OPTIONS.map((option) => {
+                                const isActive = state.focus.includes(option.id);
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        disabled={disabled}
+                                        className={cn(
+                                            "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                            isActive
+                                                ? "border-emerald-500 bg-emerald-50"
+                                                : "border-slate-200 bg-white hover:border-slate-400"
+                                        )}
+                                        onClick={() => handleFocusToggle(option.id)}
+                                    >
+                                        <p className="text-sm font-semibold text-slate-900">
+                                            {option.title}
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            {option.description}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    <section>
+                        <div
+                            className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <Workflow className="h-4 w-4"/>
+                            图表类型
+                        </div>
+
+                        {/* 智能识别选项 - 推荐 */}
+                        {autoOption && (
+                            <div className="mb-2">
                                 <button
-                                    key={option.id}
                                     type="button"
                                     disabled={disabled}
                                     className={cn(
-                                        "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
-                                        isActive
-                                            ? "border-indigo-500 bg-indigo-50"
+                                        "w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                        state.diagramTypes.includes(autoOption.id)
+                                            ? "border-indigo-500 bg-indigo-50 shadow-sm"
                                             : "border-slate-200 bg-white hover:border-slate-400"
                                     )}
-                                    onClick={() => handleDiagramTypeToggle(option.id)}
+                                    onClick={() => handleDiagramTypeToggle(autoOption.id)}
                                 >
-                                    <p className="text-sm font-semibold text-slate-900">
-                                        {option.title}
-                                    </p>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        {option.description}
-                                    </p>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-semibold text-slate-900">
+                                                    {autoOption.title}
+                                                </p>
+                                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                                    推荐
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {autoOption.description}
+                                            </p>
+                                        </div>
+                                        <Sparkles className="h-4 w-4 text-indigo-500" />
+                                    </div>
                                 </button>
-                            );
-                        })}
-                    </div>
-                )}
-            </section>
+                            </div>
+                        )}
+
+                        {/* 展开/收起按钮 */}
+                        <button
+                            type="button"
+                            onClick={() => setShowAllDiagramTypes(!showAllDiagramTypes)}
+                            className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                        >
+                            {showAllDiagramTypes ? (
+                                <>
+                                    <ChevronUp className="h-3.5 w-3.5" />
+                                    收起具体类型
+                                </>
+                            ) : (
+                                <>
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                    显示具体类型 ({specificOptions.length}个)
+                                </>
+                            )}
+                        </button>
+
+                        {/* 具体图表类型 - 可折叠 */}
+                        {showAllDiagramTypes && (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {displayedOptions.map((option) => {
+                                    const isActive = state.diagramTypes.includes(option.id);
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            disabled={disabled}
+                                            className={cn(
+                                                "rounded-xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                                isActive
+                                                    ? "border-indigo-500 bg-indigo-50"
+                                                    : "border-slate-200 bg-white hover:border-slate-400"
+                                            )}
+                                            onClick={() => handleDiagramTypeToggle(option.id)}
+                                        >
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {option.title}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {option.description}
+                                            </p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
+                </>
+            )}
         </div>
     );
 }
@@ -461,7 +576,7 @@ export function FlowPilotBriefDialog({
                 <DialogHeader>
                     <DialogTitle>FlowPilot Brief 偏好配置</DialogTitle>
                     <DialogDescription>
-                        设定任务目标、视觉风格与设计重点，AI 将基于这些偏好生成图表。
+                        设定任务目标、视觉风格与设计重点，或切换到自由模式仅保留少量默认守则。
                     </DialogDescription>
                 </DialogHeader>
                 <FlowPilotBrief state={state} onChange={onChange} disabled={disabled} />

@@ -25,6 +25,9 @@ export type SvgElementBase = {
     fill?: string;
     stroke?: string;
     strokeWidth?: number;
+    strokeDasharray?: string;
+    markerEnd?: string;
+    markerStart?: string;
     opacity?: number;
     transform?: Transform;
     visible?: boolean;
@@ -55,6 +58,8 @@ export type LineElement = SvgElementBase & {
     y1: number;
     x2: number;
     y2: number;
+    startRef?: string | null;
+    endRef?: string | null;
 };
 
 export type PathElement = SvgElementBase & {
@@ -70,6 +75,7 @@ export type TextElement = SvgElementBase & {
     fontSize?: number;
     fontWeight?: string;
     textAnchor?: "start" | "middle" | "end";
+    dominantBaseline?: "auto" | "middle" | "hanging" | "central" | "text-before-edge" | "text-after-edge" | "ideographic" | "alphabetic" | "mathematical";
 };
 
 export type SvgElement =
@@ -98,14 +104,15 @@ type EditorSnapshot = {
 };
 
 type SvgEditorContextValue = {
-        doc: SvgDocument;
-        elements: SvgElement[];
-        tool: SvgTool;
-        setTool: (tool: SvgTool) => void;
-        selectedId: string | null;
-        setSelectedId: (id: string | null) => void;
-        selectedIds: Set<string>;
-        setSelectedIds: (ids: Set<string>) => void;
+    doc: SvgDocument;
+    elements: SvgElement[];
+    tool: SvgTool;
+    setTool: (tool: SvgTool) => void;
+    updateDoc: (partial: Partial<SvgDocument>) => void;
+    selectedId: string | null;
+    setSelectedId: (id: string | null) => void;
+    selectedIds: Set<string>;
+    setSelectedIds: (ids: Set<string>) => void;
     addElement: (element: Omit<SvgElement, "id"> | SvgElement) => string;
     updateElement: (
         id: string,
@@ -196,11 +203,14 @@ function serializeTransform(transform?: Transform): string | undefined {
 
 function elementToMarkup(element: SvgElement): string {
     const common = [
-        element.fill ? `fill="${element.fill}"` : 'fill="none"',
-        element.stroke ? `stroke="${element.stroke}"` : "",
-        element.strokeWidth
+        element.fill !== undefined ? `fill="${element.fill}"` : 'fill="none"',
+        element.stroke !== undefined ? `stroke="${element.stroke}"` : "",
+        element.strokeWidth !== undefined
             ? `stroke-width="${element.strokeWidth}"`
             : "",
+        element.strokeDasharray ? `stroke-dasharray="${element.strokeDasharray}"` : "",
+        element.markerEnd ? `marker-end="${element.markerEnd}"` : "",
+        element.markerStart ? `marker-start="${element.markerStart}"` : "",
         element.opacity != null ? `opacity="${element.opacity}"` : "",
     ]
         .filter(Boolean)
@@ -215,7 +225,7 @@ function elementToMarkup(element: SvgElement): string {
         case "ellipse":
             return `<ellipse id="${element.id}" cx="${element.cx}" cy="${element.cy}" rx="${element.rx}" ry="${element.ry}" ${common}${transformAttr} />`;
         case "line":
-            return `<line id="${element.id}" x1="${element.x1}" y1="${element.y1}" x2="${element.x2}" y2="${element.y2}" ${common}${transformAttr} />`;
+            return `<line id="${element.id}" x1="${element.x1}" y1="${element.y1}" x2="${element.x2}" y2="${element.y2}"${element.startRef ? ` data-start-ref="${element.startRef}"` : ""}${element.endRef ? ` data-end-ref="${element.endRef}"` : ""} ${common}${transformAttr} />`;
         case "path":
             return `<path id="${element.id}" d="${element.d}" ${common}${transformAttr} />`;
         case "text":
@@ -257,7 +267,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 ry: parseOptionalNumber(node.getAttribute("ry")),
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
@@ -274,7 +287,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 ry: r,
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
@@ -291,7 +307,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 ry: parseNumber(node.getAttribute("ry")),
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
@@ -305,8 +324,13 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 y1: parseNumber(node.getAttribute("y1")),
                 x2: parseNumber(node.getAttribute("x2")),
                 y2: parseNumber(node.getAttribute("y2")),
+                startRef: node.getAttribute("data-start-ref"),
+                endRef: node.getAttribute("data-end-ref"),
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
@@ -319,12 +343,47 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 d: node.getAttribute("d") || "",
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
             } as PathElement;
+        case "polyline":
+        case "polygon": {
+            const points = node.getAttribute("points");
+            if (!points) return null;
+            const coords = points.trim().split(/\s+|,/);
+            let d = "";
+            for (let i = 0; i < coords.length; i += 2) {
+                const x = parseFloat(coords[i]);
+                const y = parseFloat(coords[i + 1]);
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                    d += (i === 0 ? "M" : "L") + `${x} ${y} `;
+                }
+            }
+            if (node.tagName.toLowerCase() === "polygon") {
+                d += "Z";
+            }
+            return {
+                id: node.getAttribute("id") || nanoid(),
+                type: "path",
+                d: d.trim(),
+                fill: node.getAttribute("fill") || "none",
+                stroke: node.getAttribute("stroke") || undefined,
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
+                opacity: parseOptionalNumber(node.getAttribute("opacity")),
+                transform,
+                visible: node.getAttribute("data-visible") !== "false",
+                locked: node.getAttribute("data-locked") === "true",
+            } as PathElement;
+        }
         case "text":
             return {
                 id: node.getAttribute("id") || nanoid(),
@@ -335,9 +394,13 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 fontSize: parseOptionalNumber(node.getAttribute("font-size")),
                 fontWeight: node.getAttribute("font-weight") || undefined,
                 textAnchor: (node.getAttribute("text-anchor") as any) || undefined,
+                dominantBaseline: (node.getAttribute("dominant-baseline") as any) || undefined,
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
-                strokeWidth: parseNumber(node.getAttribute("stroke-width")),
+                strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                markerEnd: node.getAttribute("marker-end") || undefined,
+                markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
@@ -363,6 +426,7 @@ function decodeSvgContent(svg: string): string {
 }
 
 function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]; defs?: string | null; valid: boolean } {
+    console.log("Parsing SVG...", svg.slice(0, 200));
     const normalized = decodeSvgContent(svg);
     const parser = new DOMParser();
     const parsed = parser.parseFromString(normalized, "image/svg+xml");
@@ -394,6 +458,13 @@ function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]
     const walker = (nodeList: Iterable<Node>, inheritedTransform?: string) => {
         for (const node of nodeList) {
             if (!(node instanceof Element)) continue;
+
+            // STOP recursion for non-renderable containers
+            const tagName = node.tagName.toLowerCase();
+            if (["defs", "symbol", "marker", "pattern", "mask", "clippath", "style", "script", "title", "desc", "metadata"].includes(tagName)) {
+                continue;
+            }
+
             const parsedElement = parseElement(node, inheritedTransform);
             const nextTransform = [inheritedTransform, node.getAttribute("transform")]
                 .filter(Boolean)
@@ -408,6 +479,7 @@ function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]
         }
     };
     walker(Array.from(svgEl.children));
+    console.log(`Parsed ${elements.length} elements from SVG.`);
 
     return {
         doc: { width, height, viewBox: viewBox || `0 0 ${width} ${height}` },
@@ -451,6 +523,24 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             setFuture([]);
         },
         [takeSnapshot]
+    );
+
+    const updateDoc = useCallback(
+        (partial: Partial<SvgDocument>) => {
+            pushHistorySnapshot();
+            setDoc((prev) => {
+                const next = { ...prev, ...partial };
+                const targetWidth = partial.width ?? prev.width;
+                const targetHeight = partial.height ?? prev.height;
+                const viewBoxMatchesSize =
+                    prev.viewBox === `0 0 ${prev.width} ${prev.height}` || !prev.viewBox;
+                if (viewBoxMatchesSize && (partial.width || partial.height)) {
+                    next.viewBox = `0 0 ${targetWidth} ${targetHeight}`;
+                }
+                return next;
+            });
+        },
+        [pushHistorySnapshot]
     );
 
     const addHistory = useCallback(
@@ -503,16 +593,58 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             if (options?.record !== false) {
                 pushHistorySnapshot();
             }
-            setElements((prev) =>
-                prev
-                    .map((item) => {
-                        if (item.id !== id) return item;
-                        const next =
-                            typeof updater === "function"
-                                ? (updater as (element: SvgElement) => SvgElement)(item)
-                                : { ...item, ...updater };
-                        return next as SvgElement;
-                    }) as SvgElement[]
+            setElements((prev) => {
+                let delta: { dx: number; dy: number } | null = null;
+                const getPosition = (el: SvgElement) => {
+                    switch (el.type) {
+                        case "rect":
+                            return { x: el.x, y: el.y };
+                        case "ellipse":
+                            return { x: el.cx, y: el.cy };
+                        case "line":
+                            return null;
+                        case "text":
+                            return { x: el.x, y: el.y };
+                        case "path":
+                            return { x: el.transform?.x ?? 0, y: el.transform?.y ?? 0 };
+                        default:
+                            return null;
+                    }
+                };
+                const updated = prev.map((item) => {
+                    if (item.id !== id) return item;
+                    const next =
+                        typeof updater === "function"
+                            ? (updater as (element: SvgElement) => SvgElement)(item)
+                            : { ...item, ...updater };
+                    if (item.type !== "line") {
+                        const prevPos = getPosition(item);
+                        const nextPos = getPosition(next as SvgElement);
+                        if (prevPos && nextPos) {
+                            delta = {
+                                dx: (nextPos.x ?? 0) - (prevPos.x ?? 0),
+                                dy: (nextPos.y ?? 0) - (prevPos.y ?? 0),
+                            };
+                        }
+                    }
+                    return next as SvgElement;
+                }) as SvgElement[];
+                if (delta && ((delta as { dx: number; dy: number }).dx !== 0 || (delta as { dx: number; dy: number }).dy !== 0)) {
+                    return updated.map((item) => {
+                        if (item.type === "line" && (item.startRef === id || item.endRef === id)) {
+                            return {
+                                ...item,
+                                x1: item.x1 + (item.startRef === id ? delta!.dx : 0),
+                                y1: item.y1 + (item.startRef === id ? delta!.dy : 0),
+                                x2: item.x2 + (item.endRef === id ? delta!.dx : 0),
+                                y2: item.y2 + (item.endRef === id ? delta!.dy : 0),
+                            };
+                        }
+                        return item;
+                    }) as SvgElement[];
+                }
+                return updated;
+            }
             );
         },
         [pushHistorySnapshot]
@@ -525,33 +657,47 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             }
             setElements((prev) =>
                 prev.map((element) => {
-                    if (element.id !== id) return element;
-                    switch (element.type) {
-                        case "rect":
-                            return { ...element, x: element.x + dx, y: element.y + dy };
-                        case "ellipse":
-                            return { ...element, cx: element.cx + dx, cy: element.cy + dy };
-                        case "line":
-                            return {
-                                ...element,
-                                x1: element.x1 + dx,
-                                y1: element.y1 + dy,
-                                x2: element.x2 + dx,
-                                y2: element.y2 + dy,
-                            };
-                        case "text":
-                            return { ...element, x: element.x + dx, y: element.y + dy };
-                        case "path": {
-                            const transform = {
-                                ...(element.transform || {}),
-                                x: (element.transform?.x || 0) + dx,
-                                y: (element.transform?.y || 0) + dy,
-                            };
-                            return { ...element, transform };
+                    if (element.id === id) {
+                        switch (element.type) {
+                            case "rect":
+                                return { ...element, x: element.x + dx, y: element.y + dy };
+                            case "ellipse":
+                                return { ...element, cx: element.cx + dx, cy: element.cy + dy };
+                            case "line":
+                                return {
+                                    ...element,
+                                    x1: element.x1 + dx,
+                                    y1: element.y1 + dy,
+                                    x2: element.x2 + dx,
+                                    y2: element.y2 + dy,
+                                };
+                            case "text":
+                                return { ...element, x: element.x + dx, y: element.y + dy };
+                            case "path": {
+                                const transform = {
+                                    ...(element.transform || {}),
+                                    x: (element.transform?.x || 0) + dx,
+                                    y: (element.transform?.y || 0) + dy,
+                                };
+                                return { ...element, transform };
+                            }
+                            default:
+                                return element;
                         }
-                        default:
-                            return element;
                     }
+                    if (
+                        element.type === "line" &&
+                        (element.startRef === id || element.endRef === id)
+                    ) {
+                        return {
+                            ...element,
+                            x1: element.x1 + (element.startRef === id ? dx : 0),
+                            y1: element.y1 + (element.startRef === id ? dy : 0),
+                            x2: element.x2 + (element.endRef === id ? dx : 0),
+                            y2: element.y2 + (element.endRef === id ? dy : 0),
+                        };
+                    }
+                    return element;
                 })
             );
         },
@@ -770,6 +916,7 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             elements,
             tool,
             setTool,
+            updateDoc,
             selectedId,
             setSelectedId,
             selectedIds,
@@ -801,6 +948,7 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             addElement,
             updateElement,
             moveElement,
+            updateDoc,
             loadSvgMarkup,
             exportSvgMarkup,
             clearSvg,
