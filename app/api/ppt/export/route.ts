@@ -3,7 +3,7 @@ import { z } from "zod";
 import PptxGenJS from "pptxgenjs";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 1200;
 
 const slideSchema = z.object({
     id: z.string(),

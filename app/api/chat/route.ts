@@ -3,7 +3,7 @@ import { streamText, convertToModelMessages, generateText, createUIMessageStream
 import { z } from "zod/v3";
 import { resolveChatModel } from "@/lib/server-models";
 
-export const maxDuration = 300
+export const maxDuration = 1200
 
 export async function POST(req: Request) {
   try {

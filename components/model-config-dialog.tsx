@@ -22,11 +22,16 @@ import {
     Hash,
     ServerCog,
     ShieldCheck,
+    CheckCircle2,
+    XCircle,
+    Loader2,
+    AlertTriangle,
 } from "lucide-react";
 import type {
     ModelEndpointConfig,
     ModelEndpointDraft,
     EndpointModelDraft,
+    ModelValidationResult,
 } from "@/types/model-config";
 
 // Simple Switch component
@@ -129,6 +134,9 @@ export function ModelConfigDialog({
     const [drafts, setDrafts] = useState<ModelEndpointDraft[]>([]);
     const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
     const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [validationStates, setValidationStates] = useState<Record<string, 'idle' | 'validating' | 'success' | 'error'>>({});
+    const [validationResults, setValidationResults] = useState<Record<string, ModelValidationResult>>({});
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (open) {
@@ -139,8 +147,79 @@ export function ModelConfigDialog({
             }
             setRevealedKeys({});
             setErrors({});
+            setValidationStates({});
+            setValidationResults({});
+            setValidationErrors({});
         }
     }, [open, endpoints]);
+
+    // 验证单个模型
+    const validateModel = async (endpointId: string, modelId: string) => {
+        const endpoint = drafts.find(d => d.id === endpointId);
+        const model = endpoint?.models.find(m => m.id === modelId);
+        
+        if (!endpoint || !model) return;
+
+        const validationKey = `${endpointId}:${modelId}`;
+        
+        // 检查必要字段
+        if (!endpoint.baseUrl?.trim() || !endpoint.apiKey?.trim() || !model.modelId?.trim()) {
+            setValidationStates(prev => ({ ...prev, [validationKey]: 'error' }));
+            setValidationErrors(prev => ({ ...prev, [validationKey]: '请先填写完整的接口配置和模型 ID' }));
+            return;
+        }
+
+        setValidationStates(prev => ({ ...prev, [validationKey]: 'validating' }));
+        setValidationErrors(prev => ({ ...prev, [validationKey]: '' }));
+
+        try {
+            const response = await fetch('/api/model-validation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    baseUrl: endpoint.baseUrl,
+                    apiKey: endpoint.apiKey,
+                    modelId: model.modelId,
+                }),
+            });
+
+            const result: ModelValidationResult = await response.json();
+
+            if (result.success) {
+                setValidationStates(prev => ({ ...prev, [validationKey]: 'success' }));
+                setValidationResults(prev => ({ ...prev, [validationKey]: result }));
+                
+                // 更新模型验证状态
+                handleModelChange(endpointId, modelId, {
+                    isValidated: true,
+                    validationTime: Date.now(),
+                });
+            } else {
+                setValidationStates(prev => ({ ...prev, [validationKey]: 'error' }));
+                setValidationErrors(prev => ({ ...prev, [validationKey]: result.error || '验证失败' }));
+            }
+        } catch (error: any) {
+            setValidationStates(prev => ({ ...prev, [validationKey]: 'error' }));
+            setValidationErrors(prev => ({ 
+                ...prev, 
+                [validationKey]: error.message || '验证请求失败，请检查网络连接' 
+            }));
+        }
+    };
+
+    // 批量验证接口下的所有模型
+    const validateAllModels = async (endpointId: string) => {
+        const endpoint = drafts.find(d => d.id === endpointId);
+        if (!endpoint) return;
+
+        for (const model of endpoint.models) {
+            await validateModel(endpointId, model.id);
+            // 添加小延迟避免并发过多
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    };
 
     const toggleReveal = (endpointId: string) => {
         setRevealedKeys((prev) => ({
@@ -220,10 +299,22 @@ export function ModelConfigDialog({
         const nextErrors: Record<string, string[]> = {};
         const validDrafts = drafts.filter((endpoint) => {
             const issues = validateEndpoint(endpoint);
+            
+            // 检查是否有验证通过的模型
+            const validatedModels = endpoint.models.filter(model => {
+                const validationKey = `${endpoint.id}:${model.id}`;
+                return validationStates[validationKey] === 'success';
+            });
+            
+            if (validatedModels.length === 0) {
+                issues.push("至少需要有一个验证通过的模型才能保存。");
+            }
+            
             if (issues.length > 0) {
                 nextErrors[endpoint.id] = issues;
                 return false;
             }
+            
             return true;
         });
 
@@ -232,15 +323,72 @@ export function ModelConfigDialog({
             return;
         }
 
-        onSave(validDrafts);
+        // 只保存验证通过的模型
+        const cleanedDrafts = validDrafts.map(endpoint => ({
+            ...endpoint,
+            models: endpoint.models.filter(model => {
+                const validationKey = `${endpoint.id}:${model.id}`;
+                return validationStates[validationKey] === 'success';
+            }),
+        }));
+
+        onSave(cleanedDrafts);
         onOpenChange(false);
     };
 
     const renderModelRow = (endpointId: string, model: EndpointModelDraft) => {
+        const validationKey = `${endpointId}:${model.id}`;
+        const validationState = validationStates[validationKey] || 'idle';
+        const validationError = validationErrors[validationKey];
+        const validationResult = validationResults[validationKey];
+
+        const getValidationIcon = () => {
+            switch (validationState) {
+                case 'validating':
+                    return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
+                case 'success':
+                    return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+                case 'error':
+                    return <XCircle className="h-4 w-4 text-red-600" />;
+                default:
+                    return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+            }
+        };
+
+        const getValidationText = () => {
+            switch (validationState) {
+                case 'validating':
+                    return '验证中...';
+                case 'success':
+                    const details = validationResult?.details;
+                    const responseTime = details && typeof details === 'object' ? details.responseTime : '';
+                    return `验证通过 ${responseTime}`;
+                case 'error':
+                    return validationError || '验证失败';
+                default:
+                    return '未验证';
+            }
+        };
+
+        const canValidate = () => {
+            const endpoint = drafts.find(d => d.id === endpointId);
+            return endpoint?.baseUrl?.trim() && 
+                   endpoint?.apiKey?.trim() && 
+                   model.modelId?.trim() && 
+                   validationState !== 'validating';
+        };
+
         return (
             <div
                 key={model.id}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200/70 bg-white/80 p-3"
+                className={cn(
+                    "flex flex-col gap-3 rounded-xl border p-3",
+                    validationState === 'success' 
+                        ? "border-green-200/70 bg-green-50/50" 
+                        : validationState === 'error'
+                        ? "border-red-200/70 bg-red-50/50"
+                        : "border-slate-200/70 bg-white/80"
+                )}
             >
                 {/* 模型ID和标签输入框 */}
                 <div className="grid gap-3 md:grid-cols-2">
@@ -281,10 +429,57 @@ export function ModelConfigDialog({
                     </div>
                 </div>
 
+                {/* 验证状态和按钮 */}
+                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2">
+                    <div className="flex items-center gap-2 flex-1">
+                        {getValidationIcon()}
+                        <span className={cn(
+                            "text-xs font-medium",
+                            validationState === 'success' ? "text-green-700" :
+                            validationState === 'error' ? "text-red-700" :
+                            validationState === 'validating' ? "text-blue-700" :
+                            "text-amber-700"
+                        )}>
+                            {getValidationText()}
+                        </span>
+                    </div>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 rounded-full text-xs"
+                        onClick={() => validateModel(endpointId, model.id)}
+                        disabled={!canValidate()}
+                    >
+                        <ShieldCheck className="h-3 w-3 mr-1" />
+                        验证
+                    </Button>
+                </div>
+
+                {/* 验证详情 */}
+                {validationState === 'success' && validationResult?.details && typeof validationResult.details === 'object' && (
+                    <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-800">
+                        <div className="font-medium">验证成功</div>
+                        <div className="mt-1 space-y-1">
+                            <div>响应时间: {validationResult.details.responseTime}</div>
+                            <div>消耗 Token: {validationResult.details.tokensUsed.total}</div>
+                            <div>测试响应: {validationResult.details.testResponse}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 验证错误 */}
+                {validationState === 'error' && validationError && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+                        <div className="font-medium">验证失败</div>
+                        <div className="mt-1">{validationError}</div>
+                    </div>
+                )}
+
                 {/* 流式输出配置 */}
                 <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2">
                     <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-slate-600">
+                        <span className="text-xs font-medium text-slate-600">
                             流式输出
                         </span>
                         <span className="text-[10px] text-slate-400">
@@ -373,6 +568,23 @@ export function ModelConfigDialog({
                                     <div className="flex gap-2">
                                         <Button
                                             type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="rounded-full text-xs"
+                                            onClick={() => validateAllModels(endpoint.id)}
+                                            disabled={
+                                                !endpoint.baseUrl?.trim() ||
+                                                !endpoint.apiKey?.trim() ||
+                                                endpoint.models.some(m => 
+                                                    validationStates[`${endpoint.id}:${m.id}`] === 'validating'
+                                                )
+                                            }
+                                        >
+                                            <ShieldCheck className="h-3 w-3 mr-1" />
+                                            验证所有模型
+                                        </Button>
+                                        <Button
+                                 type="button"
                                             variant="outline"
                                             size="sm"
                                             className="rounded-full"
@@ -506,7 +718,10 @@ export function ModelConfigDialog({
 
                 <DialogFooter className="flex flex-col gap-2 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-[11px] text-slate-500">
-                        数据仅保存在浏览器 localStorage，清理缓存或更换设备会丢失配置。
+                        数据仅保存在浏览器 localStorage，清理缓存或更换设备会丢失配置。<br />
+                        <span className="text-amber-600 font-medium">
+                            ⚠️ 只有验证通过的模型才能保存和使用。
+                        </span>
                     </div>
                     <div className="flex gap-2">
                         <Button
@@ -521,7 +736,15 @@ export function ModelConfigDialog({
                             type="button"
                             className="rounded-full bg-slate-900 px-4 text-white hover:bg-slate-900/90"
                             onClick={handleSave}
-                            disabled={drafts.length === 0}
+                            disabled={
+                                drafts.length === 0 ||
+                                !drafts.some(endpoint => 
+                                    endpoint.models.some(model => {
+                                        const validationKey = `${endpoint.id}:${model.id}`;
+                                        return validationStates[validationKey] === 'success';
+                                    })
+                                )
+                            }
                         >
                             保存配置
                         </Button>

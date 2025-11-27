@@ -4,6 +4,8 @@ export interface EndpointModelConfig {
     label: string;
     description?: string;
     isStreaming?: boolean; // 该模型是否使用流式输出，默认 false
+    isValidated?: boolean; // 模型是否已验证通过
+    validationTime?: number; // 最后验证时间
     createdAt: number;
     updatedAt: number;
 }
@@ -49,3 +51,22 @@ export type ModelEndpointDraft = Omit<ModelEndpointConfig, "createdAt" | "update
     updatedAt?: number;
     models: EndpointModelDraft[];
 };
+
+// 验证结果类型
+export interface ModelValidationResult {
+    success: boolean;
+    message?: string;
+    error?: string;
+    details?: {
+        modelId: string;
+        responseTime: string;
+        tokensUsed: {
+            input: number;
+            output: number;
+            total: number;
+        };
+        testResponse: string;
+    } | string;
+    modelId?: string;
+    baseUrl?: string;
+}

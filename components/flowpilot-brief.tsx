@@ -67,7 +67,7 @@ const BRIEF_MODE_OPTIONS: {
 }[] = [
     {
         id: "guided",
-        title: "FlowBrief",
+        title: "专业模式",
         description: "",
         helper: "",
     },
