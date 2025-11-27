@@ -186,9 +186,8 @@ export default function Home() {
     };
 
     const RESIZER_WIDTH = 10;
-    const gridTemplateColumns = isChatVisible
-        ? `${100 - chatWidthPercent}fr ${RESIZER_WIDTH}px ${chatWidthPercent}fr`
-        : "1fr";
+    // 修改网格布局逻辑，始终包含聊天面板的空间，但在不可见时设置为 0
+    const gridTemplateColumns = `${100 - (isChatVisible ? chatWidthPercent : 0)}fr ${isChatVisible ? RESIZER_WIDTH : 0}px ${isChatVisible ? chatWidthPercent : 0}fr`;
 
     return (
         <div className="bg-gray-100">
@@ -196,10 +195,7 @@ export default function Home() {
                 {/* <WorkspaceNav /> */}
                 <div
                     ref={mainContentRef}
-                    className={cn(
-                        "grid h-dvh min-h-0 flex-1",
-                        !isChatVisible && "grid-cols-1"
-                    )}
+                    className="grid h-dvh min-h-0 flex-1"
                     style={{ gridTemplateColumns }}
                 >
                     <div className="relative flex h-full min-h-0 min-w-0 p-1">
@@ -286,37 +282,36 @@ export default function Home() {
                             </div>
                         )}
                     </div>
-                    {isChatVisible && (
-                        <div
-                            role="separator"
-                            aria-orientation="vertical"
-                            onPointerDown={handleResizeChatStart}
-                            className={cn(
-                                "hidden h-full items-center justify-center border-x border-slate-100 bg-white/60 transition hover:bg-slate-100 active:bg-slate-200 lg:flex cursor-col-resize",
-                                isResizingChat && "bg-blue-50 border-blue-200"
-                            )}
-                            style={{ width: RESIZER_WIDTH }}
-                        >
-                            <div className="h-10 w-1 rounded-full bg-slate-300" />
-                        </div>
-                    )}
-                    {isChatVisible && (
-                        <div
-                            className={cn(
-                                "hidden h-full min-h-0 p-1 transition-all duration-300 lg:block",
-                                isChatVisible
-                                    ? "opacity-100"
-                                    : "pointer-events-none opacity-0 translate-x-4"
-                            )}
-                        >
-                            <ChatPanelOptimized
-                                onCollapse={() => setIsChatVisible(false)}
-                                isCollapsible
-                                renderMode={renderMode}
-                                onRenderModeChange={setRenderMode}
-                            />
-                        </div>
-                    )}
+                    {/* 分隔器 - 始终渲染但只在可见时显示 */}
+                    <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        onPointerDown={handleResizeChatStart}
+                        className={cn(
+                            "h-full items-center justify-center border-x border-slate-100 bg-white/60 transition hover:bg-slate-100 active:bg-slate-200 cursor-col-resize",
+                            isChatVisible ? "flex" : "hidden",
+                            isResizingChat && "bg-blue-50 border-blue-200"
+                        )}
+                        style={{ width: isChatVisible ? RESIZER_WIDTH : 0 }}
+                    >
+                        <div className="h-10 w-1 rounded-full bg-slate-300" />
+                    </div>
+                    {/* Chat Panel - 始终渲染，通过位置控制显示 */}
+                    <div
+                        className={cn(
+                            "h-full min-h-0 p-1 transition-all duration-300",
+                            isChatVisible
+                                ? "opacity-100"
+                                : "opacity-0 pointer-events-none"
+                        )}
+                    >
+                        <ChatPanelOptimized
+                            onCollapse={() => setIsChatVisible(false)}
+                            isCollapsible
+                            renderMode={renderMode}
+                            onRenderModeChange={setRenderMode}
+                        />
+                    </div>
                 </div>
             </section>
         </div>

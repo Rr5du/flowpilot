@@ -283,7 +283,6 @@ export const zhTranslations = {
   // 智能工具栏
   toolbar: {
     title: "智能工具",
-    calibration: "校准",
     showcase: "示例",
     blueprint: "蓝图",
     comparison: "比对",
@@ -411,18 +410,6 @@ export const zhTranslations = {
     discardMessage: "确定要丢弃更改吗？",
     exitTitle: "确认退出",
     exitMessage: "有未保存的更改，确定要退出吗？",
-  },
-
-  // 校准控制台
-  calibration: {
-    title: "AI 校准控制台",
-    systemPrompt: "系统提示词",
-    editPrompt: "编辑提示词",
-    savePrompt: "保存提示词",
-    resetPrompt: "重置提示词",
-    currentPrompt: "当前提示词",
-    defaultPrompt: "默认提示词",
-    customPrompt: "自定义提示词",
   },
 
   // 展示画廊
@@ -744,7 +731,6 @@ export const enTranslations = {
   // Intelligent Toolbar
   toolbar: {
     title: "Intelligence Tools",
-    calibration: "Calibration",
     showcase: "Examples",
     blueprint: "Blueprint",
     comparison: "Comparison",
@@ -872,18 +858,6 @@ export const enTranslations = {
     discardMessage: "Are you sure you want to discard changes?",
     exitTitle: "Confirm Exit",
     exitMessage: "You have unsaved changes. Are you sure you want to exit?",
-  },
-
-  // Calibration Console
-  calibration: {
-    title: "AI Calibration Console",
-    systemPrompt: "System Prompt",
-    editPrompt: "Edit Prompt",
-    savePrompt: "Save Prompt",
-    resetPrompt: "Reset Prompt",
-    currentPrompt: "Current Prompt",
-    defaultPrompt: "Default Prompt",
-    customPrompt: "Custom Prompt",
   },
 
   // Showcase Gallery

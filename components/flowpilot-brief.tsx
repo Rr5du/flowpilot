@@ -10,6 +10,10 @@ import {
     Settings2,
     Sparkles,
     Workflow,
+    Bot,
+    CheckCircle2,
+    XCircle,
+    Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +24,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import type { ModelEndpointConfig, RuntimeModelOption } from "@/types/model-config";
 
 export type BriefModeId = "guided" | "free";
 export type BriefIntentId = "draft" | "polish" | "explain";
@@ -596,6 +601,12 @@ export function FlowPilotBriefDialog({
 
 interface FlowPilotBriefLauncherProps extends FlowPilotBriefProps {
     badges: string[];
+    // 模型配置相关
+    modelEndpoints?: ModelEndpointConfig[];
+    modelOptions?: RuntimeModelOption[];
+    selectedModelKey?: string;
+    onSelectModel?: (modelKey: string) => void;
+    onManageModels?: () => void;
 }
 
 export function FlowPilotBriefLauncher({
@@ -603,6 +614,11 @@ export function FlowPilotBriefLauncher({
     onChange,
     disabled,
     badges,
+    modelEndpoints = [],
+    modelOptions = [],
+    selectedModelKey,
+    onSelectModel,
+    onManageModels,
 }: FlowPilotBriefLauncherProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -621,6 +637,17 @@ export function FlowPilotBriefLauncher({
         observer.observe(container);
         return () => observer.disconnect();
     }, []);
+
+    const selectedModel = selectedModelKey ? modelOptions.find(m => m.key === selectedModelKey) : null;
+    const hasModels = modelOptions.length > 0;
+
+    const getModelStatusIcon = (model: RuntimeModelOption) => {
+        const endpoint = modelEndpoints.find(ep => ep.id === model.endpointId);
+        if (endpoint?.baseUrl && endpoint?.apiKey) {
+            return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+        }
+        return <XCircle className="h-3 w-3 text-red-500" />;
+    };
 
     const renderSummaryBadges = () => {
         if (badges.length === 0) return null;
@@ -656,29 +683,120 @@ export function FlowPilotBriefLauncher({
         <>
             <div
                 ref={containerRef}
-                className="rounded-2xl border bg-white/90 p-3 shadow-sm"
+                className="space-y-3"
             >
-                <div className="flex flex-wrap items-center gap-2 justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        FlowBrief 偏好
-                    </p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size={isCompact ? "icon" : "sm"}
-                        disabled={disabled}
-                        onClick={() => setIsOpen(true)}
-                        className={cn(
-                            "inline-flex items-center gap-1",
-                            isCompact && "rounded-full"
-                        )}
-                        aria-label="调整 FlowBrief 偏好"
-                    >
-                        <Settings2 className="h-4 w-4" />
-                        {!isCompact && "调整偏好"}
-                    </Button>
+                {/* AI 模型配置 */}
+                <div className="rounded-2xl border bg-white/90 p-3 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Bot className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            AI 模型
+                        </span>
+                    </div>
+                    
+                    {!hasModels ? (
+                        <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 p-3 text-center">
+                            <p className="text-xs font-medium text-amber-900 mb-2">
+                                尚未配置模型接口
+                            </p>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={onManageModels}
+                                disabled={disabled}
+                                className="gap-1 text-xs h-7 bg-amber-600 hover:bg-amber-700"
+                            >
+                                <Plus className="h-3 w-3" />
+                                立即配置
+                            </Button>
+                        </div>
+                    ) : selectedModel ? (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50 border border-blue-200">
+                                {getModelStatusIcon(selectedModel)}
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-slate-900 truncate">
+                                        {selectedModel.label || selectedModel.modelId}
+                                    </div>
+                                    <div className="text-xs text-slate-500 truncate">
+                                        {selectedModel.endpointName}
+                                    </div>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={onManageModels}
+                                disabled={disabled}
+                                className="w-full text-xs h-7"
+                            >
+                                管理模型
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <p className="text-xs text-slate-600">请选择一个模型开始对话</p>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={onManageModels}
+                                disabled={disabled}
+                                className="w-full gap-1 text-xs h-7"
+                            >
+                                选择模型
+                            </Button>
+                        </div>
+                    )}
                 </div>
-                {renderSummaryBadges()}
+
+                {/* Brief 偏好配置 */}
+                <div className="rounded-2xl border bg-white/90 p-3 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-amber-500" />
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Brief
+                            </span>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={disabled}
+                            onClick={() => setIsOpen(true)}
+                            className="gap-1 text-xs h-7"
+                        >
+                            <Settings2 className="h-3 w-3" />
+                            调整
+                        </Button>
+                    </div>
+                    
+                    {/* 快速模式切换 */}
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        {BRIEF_MODE_OPTIONS.map((option) => {
+                            const isActive = state.mode === option.id;
+                            return (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    disabled={disabled}
+                                    className={cn(
+                                        "rounded-lg border px-3 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-60",
+                                        isActive
+                                            ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                                    )}
+                                    onClick={() => onChange({ mode: option.id })}
+                                >
+                                    {option.title}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    
+                    {renderSummaryBadges()}
+                </div>
             </div>
             <FlowPilotBriefDialog
                 state={state}

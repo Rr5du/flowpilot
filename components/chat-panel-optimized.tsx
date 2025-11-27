@@ -12,6 +12,8 @@ import {
     PanelRightClose,
     PauseCircle,
     Sparkles,
+    MessageSquare,
+    History,
 } from "lucide-react";
 import {
     Card,
@@ -53,14 +55,12 @@ import {
     FLOWPILOT_FREEFORM_PROMPT,
 } from "./flowpilot-brief";
 import { ReportBlueprintTray } from "./report-blueprint-tray";
-import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates";
 import { ModelComparisonConfigDialog } from "@/components/model-comparison-config-dialog";
 import { IntelligenceToolbar } from "@/features/chat-panel/components/intelligence-toolbar";
 import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
-    FLOWPILOT_AI_CALIBRATION_PROMPT,
     FLOW_SHOWCASE_PRESETS,
     QUICK_ACTIONS,
     type FlowShowcasePreset,
@@ -71,8 +71,12 @@ import type { DiagramRenderingMode, DiagramResultEntry, DiagramUpdateMeta, ToolP
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
 import { ModelConfigDialog } from "@/components/model-config-dialog";
+import { ConversationHistoryDialog } from "@/components/conversation-history-dialog";
+import { DiagramGalleryDialog } from "@/components/diagram-gallery-dialog";
+import { useConversationHistory, type ConversationHistoryItem } from "@/hooks/use-conversation-history";
 import type { RuntimeModelConfig } from "@/types/model-config";
 import { TemplateGallery } from "@/components/template-gallery";
+import { BriefQuickControl } from "@/components/brief-quick-control";
 
 interface ChatPanelProps {
     onCollapse?: () => void;
@@ -94,6 +98,7 @@ export default function ChatPanelOptimized({
         diagramHistory: mxDiagramHistory,
         restoreDiagramAt,
         fetchDiagramXml,
+        fetchDiagramData,
         runtimeError,
         setRuntimeError,
     } = useDiagram();
@@ -262,6 +267,20 @@ export default function ChatPanelOptimized({
     const [contactCopyState, setContactCopyState] = useState<"idle" | "copied">(
         "idle"
     );
+
+    // 对话历史相关状态
+    const [isConversationHistoryOpen, setIsConversationHistoryOpen] = useState(false);
+    const [isDiagramGalleryOpen, setIsDiagramGalleryOpen] = useState(false);
+
+    // 使用对话历史 hook
+    const {
+        conversations,
+        isLoading: isConversationHistoryLoading,
+        saveCurrentConversation,
+        deleteConversation,
+        clearAllConversations,
+    } = useConversationHistory();
+
     const diagramResultsRef = useRef<
         Map<string, DiagramResultEntry>
     >(new Map());
@@ -413,19 +432,56 @@ export default function ChatPanelOptimized({
                             return;
                         }
 
+                        let finalXml = xml;
+                        let isSvgContent = false;
+
+                        // 检查是否为 SVG 内容（如果模型错误地使用了 display_diagram 返回 SVG）
+                        if (xml.trim().startsWith("<svg") || xml.trim().startsWith("<?xml")) {
+                            try {
+                                // 尝试作为 SVG 处理
+                                const { rootXml } = buildSvgRootXml(xml);
+                                finalXml = rootXml;
+                                isSvgContent = true;
+                                console.log("Detected SVG content in display_diagram, wrapped as DrawIO image.");
+                            } catch (e) {
+                                // 如果解析失败，可能是普通 XML，忽略错误继续尝试作为 DrawIO XML 加载
+                                console.warn("Failed to parse potential SVG content:", e);
+                            }
+                        }
+
                         // 立即渲染到画布
-                        await handleCanvasUpdate(xml, {
+                        await handleCanvasUpdate(finalXml, {
                             origin: "display",
                             modelRuntime: selectedModel ?? undefined,
                         });
 
                         // 同时保存到 diagramResultsRef 供后续使用
+                        console.log("Saving diagram to gallery:", toolCall.toolCallId, finalXml.slice(0, 50));
                         diagramResultsRef.current.set(toolCall.toolCallId, {
-                            xml,
-                            mode: "drawio",
+                            xml: finalXml,
+                            mode: isSvgContent ? "drawio" : "drawio", // 仍然是 drawio 模式，因为是在 drawio 画布上渲染
                             runtime: selectedModel ?? undefined,
+                            // 如果是 SVG 内容，我们也保存原始 SVG 以备不时之需（虽然 gallery 主要用 xml/svg 快照）
+                            svg: isSvgContent ? xml : undefined
                         });
                         setDiagramResultVersion((prev) => prev + 1);
+
+                        // 延迟获取 SVG 快照用于画廊展示
+                        setTimeout(async () => {
+                            try {
+                                const { svg } = await fetchDiagramData({ saveHistory: false });
+                                const current = diagramResultsRef.current.get(toolCall.toolCallId);
+                                if (current) {
+                                    diagramResultsRef.current.set(toolCall.toolCallId, {
+                                        ...current,
+                                        svg,
+                                    });
+                                    setDiagramResultVersion((prev) => prev + 1);
+                                }
+                            } catch (e) {
+                                console.warn("Failed to capture SVG snapshot for gallery:", e);
+                            }
+                        }, 1000); // 等待渲染完成后截图
 
                         // 立即清除 input 中的 XML，避免在 DOM 中显示大量内容
                         if (toolCall.input && typeof toolCall.input === "object") {
@@ -704,28 +760,6 @@ export default function ChatPanelOptimized({
         }
     }, []);
 
-    const briefTagTone = useCallback((badge: string) => {
-        const prefix = badge.split("·")[0];
-        switch (prefix) {
-            case "模式":
-                return "border-indigo-200 bg-indigo-50 text-indigo-700";
-            case "视觉":
-                return "border-rose-200 bg-rose-50 text-rose-700";
-            case "重点":
-                return "border-amber-200 bg-amber-50 text-amber-700";
-            case "护栏":
-                return "border-emerald-200 bg-emerald-50 text-emerald-700";
-            case "自由":
-                return "border-sky-200 bg-sky-50 text-sky-700";
-            case "语法":
-                return "border-emerald-200 bg-emerald-50 text-emerald-700";
-            case "默认":
-                return "border-slate-200 bg-slate-50 text-slate-700";
-            default:
-                return "border-slate-200 bg-slate-50 text-slate-700";
-        }
-    }, []);
-
     // 监听消息变化，自动启动对话状态
     useEffect(() => {
         const userMessages = messages.filter((message) => message.role === "user");
@@ -736,6 +770,19 @@ export default function ChatPanelOptimized({
             incrementMessageCount();
         }
     }, [messages, isConversationStarted, messageCount, startConversation, incrementMessageCount]);
+
+    // 自动保存对话历史
+    useEffect(() => {
+        if (messages.length > 0) {
+            // 延迟保存，避免频繁保存
+            const timer = setTimeout(() => {
+                const latestDiagram = getLatestCanvasMarkup();
+                saveCurrentConversation(messages, renderMode, latestDiagram, diagramResultsRef.current);
+            }, 3000); // 3秒延迟保存
+
+            return () => clearTimeout(timer);
+        }
+    }, [messages, renderMode, getLatestCanvasMarkup, saveCurrentConversation]);
 
     useEffect(() => {
         if (isConversationStarted) {
@@ -849,58 +896,6 @@ export default function ChatPanelOptimized({
         setFiles(newFiles);
     };
 
-    const handleAICalibrationRequest = async () => {
-        if (!ensureBranchSelectionSettled()) {
-            throw new Error("请先处理对比结果，再执行校准。");
-        }
-        if (status === "streaming") {
-            throw new Error("AI 正在回答其他请求，请稍后再试。");
-        }
-        if (!selectedModel) {
-            setIsModelConfigOpen(true);
-            throw new Error("请先配置可用模型后再执行校准。");
-        }
-        if (renderMode === "svg") {
-            throw new Error("SVG 模式暂不支持校准，请切换回 draw.io XML 模式。");
-        }
-
-        let chartXml = await onFetchChart();
-
-        if (!chartXml.trim()) {
-            throw new Error("当前画布为空，无法执行校准。");
-        }
-
-        // 用户可见的校准请求消息
-        const userVisibleMessage =
-            "🎯 启动 AI 校准\n\n" +
-            "请优化当前流程图的布局：\n" +
-            "• 保持所有节点和内容不变\n" +
-            "• 优化节点位置和间距\n" +
-            "• 整理连接线路径\n" +
-            "• 使用 edit_diagram 工具进行批量调整";
-        const streamingFlag = selectedModel?.isStreaming ?? false;
-
-        await sendMessage(
-            {
-                parts: [
-                    {
-                        type: "text",
-                        // 用户看到的是简化版本
-                        text: userVisibleMessage + "\n\n---\n\n" + FLOWPILOT_AI_CALIBRATION_PROMPT,
-                    },
-                ],
-            },
-            {
-                body: {
-                    xml: chartXml,
-                    modelRuntime: selectedModel,
-                    enableStreaming: streamingFlag,
-                    renderMode,
-                },
-            }
-        );
-    };
-
     const handleQuickAction = async (action: QuickActionDefinition) => {
         if (status === "streaming") return;
         if (!ensureBranchSelectionSettled()) return;
@@ -982,6 +977,81 @@ export default function ChatPanelOptimized({
         }
         setIsBriefDialogOpen(true);
     }, [status]);
+
+    // 对话历史处理函数
+    const handleShowConversationHistory = useCallback(() => {
+        if (status === "streaming") return;
+        setIsConversationHistoryOpen(true);
+    }, [status]);
+
+    const handleShowDiagramGallery = useCallback(() => {
+        if (status === "streaming") return;
+        setIsDiagramGalleryOpen(true);
+    }, [status]);
+
+    const handleStartNewConversation = useCallback(async () => {
+        // 保存当前对话
+        if (messages.length > 0) {
+            const latestDiagram = getLatestCanvasMarkup();
+            saveCurrentConversation(messages, renderMode, latestDiagram, diagramResultsRef.current);
+        }
+
+        // 清空当前状态
+        await handleClearChat();
+    }, [messages, getLatestCanvasMarkup, saveCurrentConversation, renderMode, handleClearChat]);
+
+    const handleLoadConversation = useCallback(async (conversation: ConversationHistoryItem) => {
+        // 停止当前的生成
+        await handleStopAll({
+            type: "success",
+            message: "已加载历史对话。",
+        });
+
+        // 1. 先重置状态，防止旧状态干扰
+        clearConversation();
+        resetActiveBranch();
+
+        // 2. 恢复消息
+        if (conversation.messagesData) {
+            setMessages(conversation.messagesData);
+            // 关键：立即同步到 activeBranch，防止 useConversationManager 中的 effect 
+            // 检测到 messages 变化但 activeBranch 尚未更新导致的不一致或覆盖
+            updateActiveBranchMessages(conversation.messagesData);
+        }
+
+        // 3. 恢复图表结果
+        if (conversation.diagramResults) {
+            diagramResultsRef.current.clear();
+            conversation.diagramResults.forEach(diagram => {
+                diagramResultsRef.current.set(diagram.id, {
+                    xml: diagram.xml || "",
+                    svg: diagram.svg || "",
+                    mode: diagram.mode,
+                });
+            });
+            setDiagramResultVersion(prev => prev + 1);
+        }
+
+        // 4. 如果有图表数据，恢复画布
+        if (conversation.finalDiagramXml) {
+            if (conversation.renderMode === "svg") {
+                loadSvgMarkup(conversation.finalDiagramXml);
+            } else {
+                await handleDiagramXml(conversation.finalDiagramXml, {
+                    origin: "display",
+                    modelRuntime: undefined,
+                });
+            }
+            updateActiveBranchDiagram(conversation.finalDiagramXml);
+        } else {
+            // 清空画布
+            if (isSvgMode) {
+                clearSvg();
+            } else {
+                clearDiagram();
+            }
+        }
+    }, [handleStopAll, setMessages, resetActiveBranch, isSvgMode, loadSvgMarkup, clearSvg, handleDiagramXml, clearDiagram, clearConversation, updateActiveBranchMessages, updateActiveBranchDiagram]);
 
     const toggleToolPanel = (panel: ToolPanel) => {
         setActiveToolPanel((current) => {
@@ -1101,15 +1171,11 @@ export default function ChatPanelOptimized({
                     }
                     disabled={status === "streaming"}
                     badges={briefContext.badges}
-                />
-            );
-        }
-
-        if (activeToolPanel === "calibration") {
-            return (
-                <CalibrationConsole
-                    disabled={status === "streaming" || requiresBranchDecision}
-                    onAiCalibrate={handleAICalibrationRequest}
+                    modelEndpoints={modelEndpoints}
+                    modelOptions={modelOptions}
+                    selectedModelKey={selectedModelKey}
+                    onSelectModel={selectModel}
+                    onManageModels={() => setIsModelConfigOpen(true)}
                 />
             );
         }
@@ -1245,6 +1311,17 @@ export default function ChatPanelOptimized({
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5">
+                            {/* 对话历史按钮 */}
+                            <button
+                                type="button"
+                                onClick={handleShowConversationHistory}
+                                disabled={status === "streaming"}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white disabled:opacity-50"
+                                aria-label="查看对话历史"
+                                title="对话历史"
+                            >
+                                <History className="h-4 w-4" />
+                            </button>
                             <a
                                 href="https://github.com/cos43/flowpilot"
                                 target="_blank"
@@ -1383,44 +1460,16 @@ export default function ChatPanelOptimized({
                 </CardContent>
 
                 <div className="absolute bottom-3 left-0 right-0 z-10 w-full px-3">
-                    <div className="flex w-full flex-col gap-1.5">
-                        {briefDisplayBadges.length > 0 && (
-                            <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-slate-200/60 bg-white/80 px-3 py-1.5 text-[11px] text-slate-500 shadow-lg backdrop-blur-md transition-all hover:bg-white/90">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/5 px-2 py-0.5 font-semibold uppercase tracking-[0.25em] text-slate-600">
-                                    <Sparkles className="h-3 w-3 text-amber-500" />
-                                    Brief
-                                </span>
-                                <div
-                                    className="flex min-w-0 max-w-[300px] items-center gap-1 overflow-hidden whitespace-nowrap pr-1"
-                                    title={briefDisplayBadges.join(" · ")}
-                                >
-                                    {briefDisplayBadges.map((badge, index) => (
-                                        <span
-                                            key={`${badge}-${index}`}
-                                            className={cn(
-                                                "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                                                briefTagTone(badge)
-                                            )}
-                                        >
-                                            {badge}
-                                        </span>
-                                    ))}
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleOpenBriefPanel}
-                                    disabled={status === "streaming"}
-                                    className={cn(
-                                        "shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-400",
-                                        status === "streaming" &&
-                                        "cursor-not-allowed opacity-50 hover:border-slate-200"
-                                    )}
-                                >
-                                    调整
-                                </button>
-                            </div>
-                        )}
-                        <div className="rounded-2xl shadow-xl">
+                    <div className="flex w-full flex-col items-center gap-1.5">
+                        {/* Brief 快速控制 - 居中显示，紧凑设计 */}
+                        <BriefQuickControl
+                            mode={briefState.mode ?? "guided"}
+                            onModeChange={(mode) => setBriefState({ ...briefState, mode })}
+                            onOpenSettings={() => setIsBriefDialogOpen(true)}
+                            disabled={status === "streaming"}
+                        />
+                        
+                        <div className="w-full rounded-2xl shadow-xl">
                             <ChatInputOptimized
                                 input={input}
                                 status={status}
@@ -1499,12 +1548,19 @@ export default function ChatPanelOptimized({
                                     })
                                 }
                                 isBusy={isGenerationBusy}
+                                onShowDiagramGallery={handleShowDiagramGallery}
                             />
                         </div>
                     </div>
                 </div>
 
             </Card >
+            <DiagramGalleryDialog
+                open={isDiagramGalleryOpen}
+                onOpenChange={setIsDiagramGalleryOpen}
+                diagramResults={diagramResultsRef.current}
+                version={diagramResultVersion}
+            />
             <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
                 <DialogContent className="!max-w-[95vw] w-[95vw] h-[90vh] p-0 overflow-hidden">
                     <DialogHeader className="px-6 pt-4 pb-2">
@@ -1602,6 +1658,16 @@ export default function ChatPanelOptimized({
                 onOpenChange={setIsModelConfigOpen}
                 endpoints={modelEndpoints}
                 onSave={saveEndpoints}
+            />
+            <ConversationHistoryDialog
+                open={isConversationHistoryOpen}
+                onOpenChange={setIsConversationHistoryOpen}
+                conversations={conversations}
+                isLoading={isConversationHistoryLoading}
+                onDeleteConversation={deleteConversation}
+                onClearAll={clearAllConversations}
+                onStartNew={handleStartNewConversation}
+                onLoadConversation={handleLoadConversation}
             />
         </>
     );

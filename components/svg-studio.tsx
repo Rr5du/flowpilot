@@ -104,6 +104,16 @@ function getBounds(element: SvgElement): { x: number; y: number; width: number; 
                 },
                 element.transform
             );
+        case "circle":
+            return applyTransform(
+                {
+                    x: element.cx - element.r,
+                    y: element.cy - element.r,
+                    width: element.r * 2,
+                    height: element.r * 2,
+                },
+                element.transform
+            );
         case "ellipse":
             return applyTransform(
                 {
@@ -592,6 +602,17 @@ export function SvgStudio() {
                             ry: snapValue(newH / 2),
                         };
                     }
+                    case "circle": {
+                        const { newX, newY, newW, newH } = applyRectResize(snapshot);
+                        // For circle, use the average of width and height to maintain circular shape
+                        const r = (newW + newH) / 4;
+                        return {
+                            ...snapshot,
+                            cx: snapValue(newX + newW / 2),
+                            cy: snapValue(newY + newH / 2),
+                            r: snapValue(r),
+                        };
+                    }
                     case "line": {
                         const { newX, newY, newW, newH } = applyRectResize(snapshot);
                         const cx = newX + newW / 2;
@@ -1025,6 +1046,16 @@ export function SvgStudio() {
                     if (direction === "centerX") next.cx = docWidth / 2;
                     if (direction === "top") next.cy = padding + el.ry;
                     if (direction === "bottom") next.cy = docHeight - padding - el.ry;
+                    if (direction === "centerY") next.cy = docHeight / 2;
+                    return next;
+                }
+                case "circle": {
+                    const next = { ...el };
+                    if (direction === "left") next.cx = padding + el.r;
+                    if (direction === "right") next.cx = docWidth - padding - el.r;
+                    if (direction === "centerX") next.cx = docWidth / 2;
+                    if (direction === "top") next.cy = padding + el.r;
+                    if (direction === "bottom") next.cy = docHeight - padding - el.r;
                     if (direction === "centerY") next.cy = docHeight / 2;
                     return next;
                 }
@@ -1582,6 +1613,10 @@ export function SvgStudio() {
                                                     stroke={element.stroke}
                                                     strokeWidth={element.strokeWidth || 1.4}
                                                     strokeDasharray={element.strokeDasharray}
+                                                    strokeLinecap={element.strokeLinecap}
+                                                    strokeLinejoin={element.strokeLinejoin}
+                                                    strokeMiterlimit={element.strokeMiterlimit}
+                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
@@ -1600,6 +1635,31 @@ export function SvgStudio() {
                                                     stroke={element.stroke}
                                                     strokeWidth={element.strokeWidth || 1.4}
                                                     strokeDasharray={element.strokeDasharray}
+                                                    strokeLinecap={element.strokeLinecap}
+                                                    strokeLinejoin={element.strokeLinejoin}
+                                                    strokeMiterlimit={element.strokeMiterlimit}
+                                                    fillRule={element.fillRule}
+                                                    markerEnd={element.markerEnd}
+                                                    markerStart={element.markerStart}
+                                                    opacity={element.opacity}
+                                                />
+                                            );
+                                        case "circle":
+                                            return (
+                                                <circle
+                                                    key={element.id}
+                                                    {...commonProps}
+                                                    cx={element.cx}
+                                                    cy={element.cy}
+                                                    r={element.r}
+                                                    fill={element.fill || "none"}
+                                                    stroke={element.stroke}
+                                                    strokeWidth={element.strokeWidth || 1.4}
+                                                    strokeDasharray={element.strokeDasharray}
+                                                    strokeLinecap={element.strokeLinecap}
+                                                    strokeLinejoin={element.strokeLinejoin}
+                                                    strokeMiterlimit={element.strokeMiterlimit}
+                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
@@ -1630,6 +1690,8 @@ export function SvgStudio() {
                                                         stroke={element.stroke}
                                                         strokeWidth={element.strokeWidth || 1.6}
                                                         strokeDasharray={element.strokeDasharray}
+                                                        strokeLinecap={element.strokeLinecap}
+                                                        strokeLinejoin={element.strokeLinejoin}
                                                         markerEnd={element.markerEnd}
                                                         markerStart={element.markerStart}
                                                         opacity={element.opacity}
@@ -1647,6 +1709,10 @@ export function SvgStudio() {
                                                     stroke={element.stroke}
                                                     strokeWidth={element.strokeWidth || 1.4}
                                                     strokeDasharray={element.strokeDasharray}
+                                                    strokeLinecap={element.strokeLinecap}
+                                                    strokeLinejoin={element.strokeLinejoin}
+                                                    strokeMiterlimit={element.strokeMiterlimit}
+                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
@@ -1662,6 +1728,7 @@ export function SvgStudio() {
                                                     fill={element.fill || "#0f172a"}
                                                     fontSize={element.fontSize || 16}
                                                     fontWeight={element.fontWeight}
+                                                    fontFamily={element.fontFamily}
                                                     textAnchor={element.textAnchor}
                                                     dominantBaseline={element.dominantBaseline}
                                                     className={cn(

@@ -11,6 +11,7 @@ import {
     History,
     Settings,
     Square,
+    LayoutGrid,
 } from "lucide-react";
 import { ButtonWithTooltip } from "@/components/button-with-tooltip";
 import { FilePreviewList } from "@/components/file-preview-list";
@@ -48,6 +49,8 @@ interface ChatInputOptimizedProps {
     isBusy?: boolean;
     historyItems?: Array<{ svg: string }>;
     onRestoreHistory?: (index: number) => void;
+    // 图表画廊相关
+    onShowDiagramGallery?: () => void;
 }
 
 export function ChatInputOptimized({
@@ -77,6 +80,8 @@ export function ChatInputOptimized({
     isBusy = false,
     historyItems = [],
     onRestoreHistory,
+    // 图表画廊参数
+    onShowDiagramGallery,
 }: ChatInputOptimizedProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -313,21 +318,20 @@ export function ChatInputOptimized({
                             <RotateCcw className="h-4 w-4" />
                         </ButtonWithTooltip>
 
-                        <ButtonWithTooltip
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-[30px] w-[30px] rounded-full"
-                            onClick={() => onToggleHistory(true)}
-                            disabled={
-                                status === "streaming" ||
-                                historyItems.length === 0 ||
-                                interactionLocked
-                            }
-                            tooltipContent="查看图表变更记录"
-                        >
-                            <History className="h-4 w-4" />
-                        </ButtonWithTooltip>
+                        {/* 图表画廊按钮 */}
+                        {onShowDiagramGallery && (
+                            <ButtonWithTooltip
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-[30px] w-[30px] rounded-full"
+                                onClick={onShowDiagramGallery}
+                                disabled={status === "streaming" || interactionLocked}
+                                tooltipContent="查看本次对话的所有图表"
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </ButtonWithTooltip>
+                        )}
                     </div>
 
                     <div className="flex flex-nowrap items-center gap-2">
@@ -464,6 +468,7 @@ export function ChatInputOptimized({
                 onClear={handleClear}
             />
 
+            {/* 原有的图表版本历史对话框 */}
             <HistoryDialog
                 showHistory={showHistory}
                 onToggleHistory={onToggleHistory}

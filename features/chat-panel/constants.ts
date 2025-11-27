@@ -1,45 +1,25 @@
-import { FileText, Settings, Zap } from "lucide-react";
+import { FileText, Settings } from "lucide-react";
 
 import type { QuickActionDefinition } from "@/components/quick-action-bar";
 import type { FlowPilotBriefState } from "@/components/flowpilot-brief";
 import type { ToolPanel, ToolbarActionDefinition } from "./types";
 
-export const FLOWPILOT_AI_CALIBRATION_PROMPT = `### FlowPilot 校准舱 · AI 重排指令
-我们需要在不改变节点语义的前提下，利用当前 draw.io XML 对图表做一次「版式重排」。目标：保持单页展示 (x:0-800, y:0-600)，让主流程更突出、泳道/分区更规整，箭头间距更干净。
 
-硬性要求：
-1. 保留全部节点、标签与图标，只有在完全重叠或内容为空时才能合并，绝不新增业务含义。
-2. 若原图存在泳道/分组/容器，沿用它们并保持 64px 垂直间距，内部子节点水平间距 56-80px、垂直间距 64-96px，容器 padding ≥ 24px。
-3. 所有节点对齐到 24px 网格，避免出现负坐标或跨页；必要时统一节点宽度或高度以获得更好的列对齐。节点与标签周围至少留出 12-16px 避让空间。
-4. 连接线必须使用 orthogonalEdgeStyle、rounded=1、endArrow=block、strokeColor=#1f2937，尽量减少交叉，允许添加/调整拐点；严禁穿过节点或遮挡标签，必要时增加中继点绕行。
-5. 至少强调一条「主流程」路径，可通过加粗箭头或淡色背景突出，但绝不改动文字内容，同时保持不遮挡其他节点。
-6. 提交前自检：无元素越界、无重叠、无孤立箭头或断开的连线，线条不压住文字，所有节点和箭头均在视口内。
-
-执行策略：
-- 如果只是部分细节调整，可用 edit_diagram 进行批量替换；若布局极度混乱，请直接用 display_diagram 返回全新的 <root>，并在 0-800 × 0-600 内排布。
-- 维持既有配色/主题（如 AWS 图标、泳道色块等），只整理结构与间距。
-
-请根据上述要求返回最终 XML，只能通过合适的工具调用输出，勿在文本中粘贴 XML。`;
 
 export const TOOLBAR_ACTIONS: Record<ToolPanel, ToolbarActionDefinition> = {
     brief: {
         label: "配置",
         icon: Settings,
-        description: "调整 FlowPilot Brief 偏好",
-    },
-    calibration: {
-        label: "校准",
-        icon: Zap,
-        description: "触发画布整理与布局建议",
+        description: "",
     },
     actions: {
         label: "模板",
         icon: FileText,
-        description: "调用灵感与述职模板",
+        description: "",
     },
 };
 
-export const TOOLBAR_PANELS: ToolPanel[] = ["brief", "calibration", "actions"];
+export const TOOLBAR_PANELS: ToolPanel[] = ["brief", "actions"];
 
 export const QUICK_ACTIONS: QuickActionDefinition[] = [
     {

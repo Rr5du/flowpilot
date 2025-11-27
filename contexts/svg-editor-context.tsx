@@ -28,9 +28,13 @@ export type SvgElementBase = {
     stroke?: string;
     strokeWidth?: number;
     strokeDasharray?: string;
+    strokeLinecap?: "butt" | "round" | "square";
+    strokeLinejoin?: "miter" | "round" | "bevel";
+    strokeMiterlimit?: number;
     markerEnd?: string;
     markerStart?: string;
     opacity?: number;
+    fillRule?: "nonzero" | "evenodd";
     transform?: Transform;
     visible?: boolean;
     locked?: boolean;
@@ -83,6 +87,7 @@ export type TextElement = SvgElementBase & {
     text: string;
     fontSize?: number;
     fontWeight?: string;
+    fontFamily?: string;
     textAnchor?: "start" | "middle" | "end";
     dominantBaseline?: "auto" | "middle" | "hanging" | "central" | "text-before-edge" | "text-after-edge" | "ideographic" | "alphabetic" | "mathematical";
 };
@@ -251,12 +256,16 @@ function serializeTransform(transform?: Transform): string | undefined {
 
 function elementToMarkup(element: SvgElement): string {
     const common = [
-        element.fill !== undefined ? `fill="${element.fill}"` : 'fill="none"',
+        element.fill !== undefined ? `fill="${element.fill}"` : "",
         element.stroke !== undefined ? `stroke="${element.stroke}"` : "",
         element.strokeWidth !== undefined
             ? `stroke-width="${element.strokeWidth}"`
             : "",
         element.strokeDasharray ? `stroke-dasharray="${element.strokeDasharray}"` : "",
+        element.strokeLinecap ? `stroke-linecap="${element.strokeLinecap}"` : "",
+        element.strokeLinejoin ? `stroke-linejoin="${element.strokeLinejoin}"` : "",
+        element.strokeMiterlimit !== undefined ? `stroke-miterlimit="${element.strokeMiterlimit}"` : "",
+        element.fillRule ? `fill-rule="${element.fillRule}"` : "",
         element.markerEnd ? `marker-end="${element.markerEnd}"` : "",
         element.markerStart ? `marker-start="${element.markerStart}"` : "",
         element.opacity != null ? `opacity="${element.opacity}"` : "",
@@ -279,7 +288,7 @@ function elementToMarkup(element: SvgElement): string {
         case "path":
             return `<path id="${element.id}" d="${element.d}" ${common}${transformAttr} />`;
         case "text":
-            return `<text id="${element.id}" x="${element.x}" y="${element.y}" ${element.fontSize ? `font-size="${element.fontSize}"` : ""} ${element.fontWeight ? `font-weight="${element.fontWeight}"` : ""} ${element.textAnchor ? `text-anchor="${element.textAnchor}"` : ""} ${common}${transformAttr}>${element.text}</text>`;
+            return `<text id="${element.id}" x="${element.x}" y="${element.y}" ${element.fontSize ? `font-size="${element.fontSize}"` : ""} ${element.fontWeight ? `font-weight="${element.fontWeight}"` : ""} ${element.fontFamily ? `font-family="${element.fontFamily}"` : ""} ${element.textAnchor ? `text-anchor="${element.textAnchor}"` : ""} ${common}${transformAttr}>${element.text}</text>`;
         case "image":
             return `<image id="${element.id}" x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}" href="${element.href}"${element.preserveAspectRatio ? ` preserveAspectRatio="${element.preserveAspectRatio}"` : ""} ${common}${transformAttr} />`;
         case "use":
@@ -330,6 +339,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -348,6 +361,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -368,6 +385,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -388,6 +409,9 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -404,6 +428,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -435,6 +463,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -452,12 +484,15 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 text: node.textContent || "",
                 fontSize: parseOptionalNumber(node.getAttribute("font-size")),
                 fontWeight: node.getAttribute("font-weight") || undefined,
+                fontFamily: node.getAttribute("font-family") || undefined,
                 textAnchor: (node.getAttribute("text-anchor") as any) || undefined,
                 dominantBaseline: (node.getAttribute("dominant-baseline") as any) || undefined,
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 strokeDasharray: node.getAttribute("stroke-dasharray") || undefined,
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
                 markerEnd: node.getAttribute("marker-end") || undefined,
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
@@ -531,6 +566,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 fill: node.getAttribute("fill") || undefined,
                 stroke: node.getAttribute("stroke") || undefined,
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
+                strokeLinecap: (node.getAttribute("stroke-linecap") as any) || undefined,
+                strokeLinejoin: (node.getAttribute("stroke-linejoin") as any) || undefined,
+                strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
+                fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform: parseTransform(groupTransform || null),
                 visible: node.getAttribute("data-visible") !== "false",

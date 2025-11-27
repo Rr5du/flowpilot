@@ -33,11 +33,11 @@ export function HistoryDialog({
         <Dialog open={showHistory} onOpenChange={onToggleHistory}>
             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>图表历史</DialogTitle>
+                    <DialogTitle>图表版本历史</DialogTitle>
                     <DialogDescription>
-                        这里保留了每次 AI 修改前的图表。
+                        这里显示当前对话中的图表版本变更历史。
                         <br />
-                        点击任意缩略图即可恢复。
+                        点击任意缩略图即可恢复到该版本。
                     </DialogDescription>
                 </DialogHeader>
 
