@@ -29,6 +29,7 @@ import { useSvgEditor, SvgElement, SvgTool } from "@/contexts/svg-editor-context
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { EnhancedSvgImportDialog } from "@/components/enhanced-svg-import-dialog";
 
 type DraftShape =
     | {
@@ -77,22 +78,22 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 8;
 const ZOOM_STEP = 0.1;
 
-function getBounds(element: SvgElement): { x: number; y: number; width: number; height: number } | null {
-    const applyTransform = (
-        bounds: { x: number; y: number; width: number; height: number },
-        transform?: { x?: number; y?: number; scaleX?: number; scaleY?: number }
-    ) => {
-        if (!transform) return bounds;
-        const scaleX = transform.scaleX ?? 1;
-        const scaleY = transform.scaleY ?? transform.scaleX ?? 1;
-        return {
-            x: (bounds.x + (transform.x ?? 0)) * scaleX,
-            y: (bounds.y + (transform.y ?? 0)) * scaleY,
-            width: bounds.width * scaleX,
-            height: bounds.height * scaleY,
-        };
+const applyTransform = (
+    bounds: { x: number; y: number; width: number; height: number },
+    transform?: { x?: number; y?: number; scaleX?: number; scaleY?: number }
+) => {
+    if (!transform) return bounds;
+    const scaleX = transform.scaleX ?? 1;
+    const scaleY = transform.scaleY ?? transform.scaleX ?? 1;
+    return {
+        x: bounds.x * scaleX + (transform.x ?? 0),
+        y: bounds.y * scaleY + (transform.y ?? 0),
+        width: bounds.width * scaleX,
+        height: bounds.height * scaleY,
     };
+};
 
+function getBounds(element: SvgElement): { x: number; y: number; width: number; height: number } | null {
     switch (element.type) {
         case "rect":
             return applyTransform(
@@ -101,16 +102,6 @@ function getBounds(element: SvgElement): { x: number; y: number; width: number; 
                     y: element.y,
                     width: element.width,
                     height: element.height,
-                },
-                element.transform
-            );
-        case "circle":
-            return applyTransform(
-                {
-                    x: element.cx - element.r,
-                    y: element.cy - element.r,
-                    width: element.r * 2,
-                    height: element.r * 2,
                 },
                 element.transform
             );
@@ -198,6 +189,7 @@ export function SvgStudio() {
     } = useSvgEditor();
     const svgRef = useRef<SVGSVGElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [draft, setDraft] = useState<DraftShape>(null);
     const [dragging, setDragging] = useState<PointerDrag>(null);
     const [isMarqueeSelecting, setIsMarqueeSelecting] = useState(false);
@@ -281,7 +273,10 @@ export function SvgStudio() {
             if (node && "getBBox" in node) {
                 try {
                     const box = (node as SVGGraphicsElement).getBBox();
-                    return { x: box.x, y: box.y, width: box.width, height: box.height };
+                    return applyTransform(
+                        { x: box.x, y: box.y, width: box.width, height: box.height },
+                        el.transform
+                    );
                 } catch {
                     // fall through
                 }
@@ -600,17 +595,6 @@ export function SvgStudio() {
                             cy: snapValue(newY + newH / 2),
                             rx: snapValue(newW / 2),
                             ry: snapValue(newH / 2),
-                        };
-                    }
-                    case "circle": {
-                        const { newX, newY, newW, newH } = applyRectResize(snapshot);
-                        // For circle, use the average of width and height to maintain circular shape
-                        const r = (newW + newH) / 4;
-                        return {
-                            ...snapshot,
-                            cx: snapValue(newX + newW / 2),
-                            cy: snapValue(newY + newH / 2),
-                            r: snapValue(r),
                         };
                     }
                     case "line": {
@@ -1001,6 +985,23 @@ export function SvgStudio() {
         event.target.value = "";
     };
 
+    // 新的导入处理函数
+    const handleSvgImport = (content: string, metadata?: any) => {
+        try {
+            const options = metadata ? {
+                saveHistory: true,
+                recordMeta: {
+                    name: metadata.name || "导入的 SVG",
+                    type: metadata.type || "paste",
+                }
+            } : undefined;
+
+            loadSvgMarkup(content, options);
+        } catch (error) {
+            console.error("导入 SVG 失败:", error);
+        }
+    };
+
     const commitCanvasSize = (key: "width" | "height") => {
         const raw = key === "width" ? canvasWidthInput : canvasHeightInput;
         const value = parseFloat(raw);
@@ -1046,16 +1047,6 @@ export function SvgStudio() {
                     if (direction === "centerX") next.cx = docWidth / 2;
                     if (direction === "top") next.cy = padding + el.ry;
                     if (direction === "bottom") next.cy = docHeight - padding - el.ry;
-                    if (direction === "centerY") next.cy = docHeight / 2;
-                    return next;
-                }
-                case "circle": {
-                    const next = { ...el };
-                    if (direction === "left") next.cx = padding + el.r;
-                    if (direction === "right") next.cx = docWidth - padding - el.r;
-                    if (direction === "centerX") next.cx = docWidth / 2;
-                    if (direction === "top") next.cy = padding + el.r;
-                    if (direction === "bottom") next.cy = docHeight - padding - el.r;
                     if (direction === "centerY") next.cy = docHeight / 2;
                     return next;
                 }
@@ -1476,7 +1467,7 @@ export function SvgStudio() {
                                 variant="secondary"
                                 size="sm"
                                 className="gap-1"
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={() => setImportDialogOpen(true)}
                             >
                                 <Upload className="h-4 w-4" />
                                 导入 SVG
@@ -1615,11 +1606,30 @@ export function SvgStudio() {
                                                     strokeDasharray={element.strokeDasharray}
                                                     strokeLinecap={element.strokeLinecap}
                                                     strokeLinejoin={element.strokeLinejoin}
-                                                    strokeMiterlimit={element.strokeMiterlimit}
-                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
+                                                    filter={element.filter}
+                                                />
+                                            );
+                                        case "circle":
+                                            return (
+                                                <circle
+                                                    key={element.id}
+                                                    {...commonProps}
+                                                    cx={element.cx}
+                                                    cy={element.cy}
+                                                    r={element.r}
+                                                    fill={element.fill || "none"}
+                                                    stroke={element.stroke}
+                                                    strokeWidth={element.strokeWidth || 1.4}
+                                                    strokeDasharray={element.strokeDasharray}
+                                                    strokeLinecap={element.strokeLinecap}
+                                                    strokeLinejoin={element.strokeLinejoin}
+                                                    markerEnd={element.markerEnd}
+                                                    markerStart={element.markerStart}
+                                                    opacity={element.opacity}
+                                                    filter={element.filter}
                                                 />
                                             );
                                         case "ellipse":
@@ -1637,32 +1647,10 @@ export function SvgStudio() {
                                                     strokeDasharray={element.strokeDasharray}
                                                     strokeLinecap={element.strokeLinecap}
                                                     strokeLinejoin={element.strokeLinejoin}
-                                                    strokeMiterlimit={element.strokeMiterlimit}
-                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
-                                                />
-                                            );
-                                        case "circle":
-                                            return (
-                                                <circle
-                                                    key={element.id}
-                                                    {...commonProps}
-                                                    cx={element.cx}
-                                                    cy={element.cy}
-                                                    r={element.r}
-                                                    fill={element.fill || "none"}
-                                                    stroke={element.stroke}
-                                                    strokeWidth={element.strokeWidth || 1.4}
-                                                    strokeDasharray={element.strokeDasharray}
-                                                    strokeLinecap={element.strokeLinecap}
-                                                    strokeLinejoin={element.strokeLinejoin}
-                                                    strokeMiterlimit={element.strokeMiterlimit}
-                                                    fillRule={element.fillRule}
-                                                    markerEnd={element.markerEnd}
-                                                    markerStart={element.markerStart}
-                                                    opacity={element.opacity}
+                                                    filter={element.filter}
                                                 />
                                             );
                                         case "line":
@@ -1695,6 +1683,7 @@ export function SvgStudio() {
                                                         markerEnd={element.markerEnd}
                                                         markerStart={element.markerStart}
                                                         opacity={element.opacity}
+                                                        filter={element.filter}
                                                         pointerEvents="none"
                                                     />
                                                 </React.Fragment>
@@ -1711,11 +1700,10 @@ export function SvgStudio() {
                                                     strokeDasharray={element.strokeDasharray}
                                                     strokeLinecap={element.strokeLinecap}
                                                     strokeLinejoin={element.strokeLinejoin}
-                                                    strokeMiterlimit={element.strokeMiterlimit}
-                                                    fillRule={element.fillRule}
                                                     markerEnd={element.markerEnd}
                                                     markerStart={element.markerStart}
                                                     opacity={element.opacity}
+                                                    filter={element.filter}
                                                 />
                                             );
                                         case "text":
@@ -1731,6 +1719,7 @@ export function SvgStudio() {
                                                     fontFamily={element.fontFamily}
                                                     textAnchor={element.textAnchor}
                                                     dominantBaseline={element.dominantBaseline}
+                                                    filter={element.filter}
                                                     className={cn(
                                                         "select-none",
                                                         element.visible === (false as any) && "opacity-30"
@@ -1739,6 +1728,97 @@ export function SvgStudio() {
                                                     {element.text}
                                                 </text>
                                             );
+                                        case "image":
+                                            return (
+                                                <image
+                                                    key={element.id}
+                                                    {...commonProps}
+                                                    x={element.x}
+                                                    y={element.y}
+                                                    width={element.width}
+                                                    height={element.height}
+                                                    href={element.href}
+                                                    preserveAspectRatio={element.preserveAspectRatio}
+                                                    opacity={element.opacity}
+                                                    filter={element.filter}
+                                                />
+                                            );
+                                        case "use":
+                                            return (
+                                                <use
+                                                    key={element.id}
+                                                    {...commonProps}
+                                                    href={element.href}
+                                                    x={element.x}
+                                                    y={element.y}
+                                                    width={element.width}
+                                                    height={element.height}
+                                                    fill={element.fill}
+                                                    stroke={element.stroke}
+                                                    strokeWidth={element.strokeWidth}
+                                                    opacity={element.opacity}
+                                                    filter={element.filter}
+                                                />
+                                            );
+                                        case "g":
+                                            // Group rendering is complex as it needs recursion or flattening.
+                                            // For now, we can skip or implement simple recursion if needed.
+                                            // Given the context, let's just render children?
+                                            // But children are in the flat `elements` list usually?
+                                            // Wait, `parseElement` returns a tree for `g`, but `SvgEditorContext` flattens?
+                                            // Let's check `parseSvgMarkup`.
+                                            // `walker` flattens everything into `elements`.
+                                            // So `g` elements in `elements` array are likely just containers or maybe not even there if flattened?
+                                            // Looking at `parseElement` for `g`: it returns a `GroupElement` with `children`.
+                                            // But `walker` recursively adds children to `elements` list.
+                                            // If `walker` adds children to the main list, then we shouldn't render `g`'s children again if they are already in the main list.
+                                            // However, `walker` adds `parsedElement` (the group) AND then recurses.
+                                            // So we have both the group and its children in the flat list?
+                                            // If so, we might have double rendering if we render children here.
+                                            // But `walker` logic:
+                                            // `elements.push(parsedElement)` -> pushes the group.
+                                            // `walker(node.children)` -> pushes children.
+                                            // So yes, both are in the list.
+                                            // But wait, `GroupElement` has `children` property.
+                                            // If we render `g`, we should render its children inside it?
+                                            // If the children are ALSO in the top-level `elements` list, they will be rendered twice?
+                                            // Let's check `parseSvgMarkup` again.
+                                            // It pushes `parsedElement` (which includes `children` array populated in `parseElement`).
+                                            // Then it calls `walker` on children.
+                                            // So yes, duplication.
+                                            // BUT, `parseElement` for `g` creates a NEW array of children `const children: SvgElement[] = []`.
+                                            // It does NOT use the same references as the ones pushed to the main list later?
+                                            // Actually `parseElement` calls `parseElement` recursively for children to populate `children` array.
+                                            // So we have two sets of objects: one inside the group's `children` array, and one in the main `elements` list.
+                                            // This seems like a bug in `parseSvgMarkup` or intended for different usage.
+                                            // If `SvgStudio` iterates over `elements`, it will encounter the group AND the children.
+                                            // If we render the group AND the children (as separate elements), we get double rendering.
+                                            // Usually, if we have a flat list, we ignore `g` or `g` is just for transform?
+                                            // But `g` has `children`.
+                                            // If we render `g`, we should probably NOT render its children if they are already in the list.
+                                            // OR, we should filter out children from the main list if they are inside a group?
+                                            // Let's look at `SvgEditorContext` again.
+                                            // `walker` pushes everything.
+                                            // So `elements` contains everything flattened.
+                                            // If we render `g`, we should probably just render it as a group container?
+                                            // But if its children are also in `elements`, they will be rendered at top level.
+                                            // If `g` has a transform, the top-level children need that transform.
+                                            // `parseElement` calculates `combinedTransform` for children!
+                                            // `const nextTransform = [inheritedTransform, node.getAttribute("transform")]...`
+                                            // So the children in the flat list ALREADY have the group's transform applied (baked in or accumulated).
+                                            // So we should NOT render `g`'s children inside `g`.
+                                            // We should probably just ignore `g` for rendering if its children are already handled.
+                                            // OR, if `g` has styles (fill, stroke) that inherit?
+                                            // `parseElement` does NOT seem to pass down fill/stroke to children explicitly, only transform.
+                                            // So if `g` has `fill="red"`, children should inherit it.
+                                            // But if children are rendered separately, they won't inherit unless we resolved it.
+                                            // The current `parseElement` does NOT resolve inherited styles.
+                                            // This might be another issue, but for now let's stick to the user's request: "face outline missing".
+                                            // The face is a `circle`.
+                                            // So adding `circle` case is the priority.
+                                            // I will also add `image` and `use` as they are simple.
+                                            // I will leave `g` alone for now to avoid breaking things, or just return null for `g`.
+                                            return null;
                                         default:
                                             return null;
                                     }
@@ -2157,6 +2237,13 @@ export function SvgStudio() {
                 ref={fileInputRef}
                 className="hidden"
                 onChange={handleImportFile}
+            />
+
+            {/* 新的导入对话框 */}
+            <EnhancedSvgImportDialog
+                open={importDialogOpen}
+                onOpenChange={setImportDialogOpen}
+                onImport={handleSvgImport}
             />
         </div >
     );

@@ -421,6 +421,8 @@ export function ChatMessageDisplay({
     const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
     const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+    const [generationElapsedTime, setGenerationElapsedTime] = useState(0);
+    const generationStartTimeRef = useRef<number | null>(null);
 
     // 流式渲染回调
     const handleStreamingApply = useCallback((xml: string, toolCallId: string) => {
@@ -438,6 +440,31 @@ export function ChatMessageDisplay({
             });
         }
     }, [onDisplayDiagram]);
+
+    // 监听生成状态，更新耗时计时器
+    useEffect(() => {
+        if (isGenerationBusy) {
+            // 开始生成
+            if (generationStartTimeRef.current === null) {
+                generationStartTimeRef.current = Date.now();
+                setGenerationElapsedTime(0);
+            }
+
+            // 每秒更新一次耗时
+            const timer = setInterval(() => {
+                if (generationStartTimeRef.current !== null) {
+                    const elapsed = Date.now() - generationStartTimeRef.current;
+                    setGenerationElapsedTime(elapsed);
+                }
+            }, 100); // 100ms 更新一次，更流畅
+
+            return () => clearInterval(timer);
+        } else {
+            // 生成结束，重置计时器
+            generationStartTimeRef.current = null;
+            setGenerationElapsedTime(0);
+        }
+    }, [isGenerationBusy]);
 
     // 优化：使用 useMemo 缓存计算结果
     const diagramResults = useMemo(() => {
@@ -1431,20 +1458,41 @@ export function ChatMessageDisplay({
                 </>
             )}
             {/* 显示生成中的 loading 提示 */}
-            {isGenerationBusy && !hasLiveToolCard && (
-                <div className="flex justify-start mb-5">
-                    <div className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm border border-slate-200">
-                        <div className="flex space-x-1">
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            {isGenerationBusy && !hasLiveToolCard && (() => {
+                // 格式化耗时显示
+                const formatElapsedTime = (ms: number) => {
+                    const seconds = Math.floor(ms / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds % 60;
+                    
+                    if (minutes > 0) {
+                        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                    }
+                    return `${seconds}s`;
+                };
+
+                const elapsedDisplay = formatElapsedTime(generationElapsedTime);
+
+                return (
+                    <div className="flex justify-start mb-5">
+                        <div className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm border border-slate-200">
+                            <div className="flex space-x-1">
+                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-sm text-slate-600 font-medium">
+                                    正在绘制中...
+                                </span>
+                                <span className="text-xs text-slate-400 font-mono">
+                                    {elapsedDisplay}
+                                </span>
+                            </div>
                         </div>
-                        <span className="text-sm text-slate-600 font-medium">
-                            正在绘制中...
-                        </span>
                     </div>
-                </div>
-            )}
+                );
+            })()}
             {error && (
                 <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}

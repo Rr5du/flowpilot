@@ -76,8 +76,8 @@ export function ConversationHistoryDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[80vh]">
-                <DialogHeader>
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         <MessageSquare className="h-5 w-5" />
                         对话历史
@@ -87,7 +87,7 @@ export function ConversationHistoryDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4 flex-shrink-0">
                     <Button
                         onClick={handleStartNew}
                         className="flex-1 gap-2"
@@ -107,7 +107,7 @@ export function ConversationHistoryDialog({
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0 pr-2">
                     {isLoading ? (
                         <div className="flex items-center justify-center p-8">
                             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />

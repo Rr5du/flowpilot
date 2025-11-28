@@ -577,7 +577,7 @@ export function FlowPilotBriefDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>FlowPilot Brief 偏好配置</DialogTitle>
                     <DialogDescription>

@@ -38,6 +38,7 @@ export type SvgElementBase = {
     transform?: Transform;
     visible?: boolean;
     locked?: boolean;
+    filter?: string;
 };
 
 export type RectElement = SvgElementBase & {
@@ -145,6 +146,20 @@ type EditorSnapshot = {
     defs?: string | null;
 };
 
+type ImportRecord = {
+    id: string;
+    name: string;
+    type: "paste" | "upload";
+    content: string;
+    timestamp: number;
+    stats?: {
+        width?: number;
+        height?: number;
+        elementCount: number;
+        pathCount: number;
+    };
+};
+
 type SvgEditorContextValue = {
     doc: SvgDocument;
     elements: SvgElement[];
@@ -166,7 +181,7 @@ type SvgEditorContextValue = {
     duplicateElement: (id: string) => string | null;
     duplicateMany: (ids: Iterable<string>) => string[];
     removeMany: (ids: Iterable<string>) => void;
-    loadSvgMarkup: (svg: string, options?: { saveHistory?: boolean }) => void;
+    loadSvgMarkup: (svg: string, options?: { saveHistory?: boolean; recordMeta?: { name?: string; type?: "paste" | "upload" } }) => void;
     exportSvgMarkup: () => string;
     clearSvg: () => void;
     history: HistoryEntry[];
@@ -176,9 +191,11 @@ type SvgEditorContextValue = {
     redo: () => void;
     commitSnapshot: () => void;
     defsMarkup?: string | null;
-    symbolLibrary: Map<string, SvgElement>;  // 存储可复用的元素（用于 <use>）
+    symbolLibrary: Map<string, SvgElement>;
     registerSymbol: (id: string, element: SvgElement) => void;
     resolveUseReference: (href: string) => SvgElement | null;
+    importHistory: ImportRecord[];
+    addImportRecord: (record: Omit<ImportRecord, "id">) => void;
 };
 
 const DEFAULT_DOC: SvgDocument = {
@@ -269,6 +286,7 @@ function elementToMarkup(element: SvgElement): string {
         element.markerEnd ? `marker-end="${element.markerEnd}"` : "",
         element.markerStart ? `marker-start="${element.markerStart}"` : "",
         element.opacity != null ? `opacity="${element.opacity}"` : "",
+        element.filter ? `filter="${element.filter}"` : "",
     ]
         .filter(Boolean)
         .join(" ");
@@ -349,6 +367,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as RectElement;
         case "circle": {
             return {
@@ -371,6 +390,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as CircleElement;
         }
         case "ellipse":
@@ -395,6 +415,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as EllipseElement;
         case "line":
             return {
@@ -418,6 +439,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as LineElement;
         case "path":
             return {
@@ -438,6 +460,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as PathElement;
         case "polyline":
         case "polygon": {
@@ -473,6 +496,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as PathElement;
         }
         case "text":
@@ -499,6 +523,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as TextElement;
         case "image": {
             const href = node.getAttribute("href") || node.getAttribute("xlink:href") || "";
@@ -518,6 +543,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as ImageElement;
         }
         case "use": {
@@ -537,17 +563,18 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 transform,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as UseElement;
         }
         case "g": {
             const children: SvgElement[] = [];
             const groupTransform = node.getAttribute("transform");
-            
-            // ✅ 修复：子元素不应该继承父元素的 transform
-            // 因为渲染时子元素会被放在 <g> 容器内，容器已经有 transform 了
-            // 如果子元素也包含父 transform，就会累加两次
-            
-            // 递归解析子元素（不传入 transform，让子元素使用自己的原始坐标）
+            const combinedTransform = [inheritedTransform, groupTransform]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+
+            // 递归解析子元素
             Array.from(node.children).forEach(child => {
                 if (!(child instanceof Element)) return;
                 const tagName = child.tagName.toLowerCase();
@@ -555,17 +582,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 if (["defs", "symbol", "marker", "pattern", "mask", "clippath", "style", "script", "title", "desc", "metadata"].includes(tagName)) {
                     return;
                 }
-                // 不传入 inheritedTransform，子元素保持原始坐标
-                const parsed = parseElement(child, undefined);
+                const parsed = parseElement(child, combinedTransform);
                 if (parsed) children.push(parsed);
             });
-            
-            // 组合父元素传入的 transform 和当前 g 的 transform
-            const combinedTransform = [inheritedTransform, groupTransform]
-                .filter(Boolean)
-                .join(" ")
-                .trim();
-            
+
             return {
                 id: node.getAttribute("id") || nanoid(),
                 type: "g",
@@ -578,10 +598,10 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
                 fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
-                // 保存组合后的 transform（包括继承的）
-                transform: parseTransform(combinedTransform || null),
+                transform: parseTransform(groupTransform || null),
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
+                filter: node.getAttribute("filter") || undefined,
             } as GroupElement;
         }
         default:
@@ -605,7 +625,12 @@ function decodeSvgContent(svg: string): string {
 
 function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]; defs?: string | null; valid: boolean } {
     console.log("Parsing SVG...", svg.slice(0, 200));
-    const normalized = decodeSvgContent(svg);
+    let normalized = decodeSvgContent(svg);
+
+    // 简单的预处理：转义未转义的 & 符号，防止 DOMParser 解析失败导致截断
+    // 匹配 & 后面不是 (字母/数字/# 开头 + ;) 的情况
+    normalized = normalized.replace(/&(?![a-zA-Z0-9#]+;)/g, "&amp;");
+
     const parser = new DOMParser();
     const parsed = parser.parseFromString(normalized, "image/svg+xml");
     const svgEl = parsed.querySelector("svg");
@@ -633,22 +658,22 @@ function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]
     const elements: SvgElement[] = [];
     const defsEl = svgEl.querySelector("defs");
     let defs = defsEl ? defsEl.innerHTML : "";
-    
+
     // 收集所有 marker、gradient、filter、pattern 定义（包括 defs 外的）
     const markerNodes = svgEl.querySelectorAll("marker");
     const gradientNodes = svgEl.querySelectorAll("linearGradient, radialGradient");
     const filterNodes = svgEl.querySelectorAll("filter");
     const patternNodes = svgEl.querySelectorAll("pattern");
-    
+
     const additionalDefs: string[] = [];
-    
+
     // 收集不在 defs 内的定义元素
     [...markerNodes, ...gradientNodes, ...filterNodes, ...patternNodes].forEach(node => {
         if (!defsEl || !defsEl.contains(node)) {
             additionalDefs.push(node.outerHTML);
         }
     });
-    
+
     if (additionalDefs.length > 0) {
         defs = defs + "\n" + additionalDefs.join("\n");
     }
@@ -663,21 +688,13 @@ function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]
             }
 
             const parsedElement = parseElement(node, inheritedTransform);
-            if (parsedElement) {
-                elements.push(parsedElement);
-            }
-            
-            // ✅ 修复：如果是 <g> 元素，不要再递归处理子元素
-            // 因为 parseElement(case "g") 已经在内部递归处理了子元素
-            if (tagName === "g") {
-                continue;  // <g> 的子元素已经在 parseElement 中处理，不要重复遍历
-            }
-            
-            // 对于其他非 <g> 元素，如果有子元素则继续遍历
             const nextTransform = [inheritedTransform, node.getAttribute("transform")]
                 .filter(Boolean)
                 .join(" ")
                 .trim();
+            if (parsedElement) {
+                elements.push(parsedElement);
+            }
             if (node.children && node.children.length > 0) {
                 walker(Array.from(node.children), nextTransform || undefined);
             }
@@ -706,6 +723,7 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
     const [future, setFuture] = useState<EditorSnapshot[]>([]);
     const [defsMarkup, setDefsMarkup] = useState<string | null>(null);
     const [symbolLibrary, setSymbolLibrary] = useState<Map<string, SvgElement>>(new Map());
+    const [importHistory, setImportHistory] = useState<ImportRecord[]>([]);
 
     const takeSnapshot = useCallback(
         (
@@ -1087,8 +1105,33 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
         [pushHistorySnapshot]
     );
 
+    const summarizeSvgStats = (elements: SvgElement[]) => {
+        let elementCount = 0;
+        let pathCount = 0;
+        const visit = (list: SvgElement[]) => {
+            list.forEach((el) => {
+                elementCount += 1;
+                if (el.type === "path") {
+                    pathCount += 1;
+                }
+                if (el.type === "g") {
+                    visit(el.children);
+                }
+            });
+        };
+        visit(elements);
+        return { elementCount, pathCount };
+    };
+
+    const addImportRecord = useCallback((record: Omit<ImportRecord, "id">) => {
+        setImportHistory((prev) => {
+            const next = [{ ...record, id: nanoid() }, ...prev];
+            return next.slice(0, 5);
+        });
+    }, []);
+
     const loadSvgMarkup = useCallback(
-        (svg: string, options?: { saveHistory?: boolean }) => {
+        (svg: string, options?: { saveHistory?: boolean; recordMeta?: { name?: string; type?: "paste" | "upload" } }) => {
             try {
                 const content = svg.trim();
                 if (!content.toLowerCase().includes("<svg")) {
@@ -1108,11 +1151,26 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                     const snapshot = buildSvgMarkup(parsed.doc, parsed.elements);
                     addHistory(snapshot);
                 }
+                if (options?.recordMeta) {
+                    const stats = summarizeSvgStats(parsed.elements);
+                    addImportRecord({
+                        name: options.recordMeta.name ?? "SVG 导入",
+                        type: options.recordMeta.type ?? "upload",
+                        content: svg,
+                        timestamp: Date.now(),
+                        stats: {
+                            width: parsed.doc.width,
+                            height: parsed.doc.height,
+                            elementCount: stats.elementCount,
+                            pathCount: stats.pathCount,
+                        },
+                    });
+                }
             } catch (error) {
                 console.error("解析 SVG 失败：", error);
             }
         },
-        [addHistory, pushHistorySnapshot]
+        [addHistory, pushHistorySnapshot, addImportRecord]
     );
 
     const clearSvg = useCallback(() => {
@@ -1215,6 +1273,8 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             symbolLibrary,
             registerSymbol,
             resolveUseReference,
+            importHistory,
+            addImportRecord,
         }),
         [
             doc,
@@ -1243,6 +1303,8 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             symbolLibrary,
             registerSymbol,
             resolveUseReference,
+            importHistory,
+            addImportRecord,
         ]
     );
 

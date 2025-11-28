@@ -3,9 +3,16 @@ import { streamText, convertToModelMessages, generateText, createUIMessageStream
 import { z } from "zod/v3";
 import { resolveChatModel } from "@/lib/server-models";
 
-export const maxDuration = 300
+// 设置默认的最大超时时间（Vercel需要静态导出）
+// 实际使用时会被modelRuntime.maxDuration覆盖
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  let timeoutId: NodeJS.Timeout | undefined;
+  const cleanup = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+  };
+
   try {
     const { messages, xml, modelRuntime, enableStreaming, renderMode } = await req.json();
 
@@ -15,6 +22,9 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    // 从模型运行时配置中获取maxDuration，默认300秒
+    const requestMaxDuration = (modelRuntime.maxDuration ?? 300) * 1000; // 转换为毫秒
 
     const outputMode: "drawio" | "svg" =
       renderMode === "svg" ? "svg" : "drawio";
@@ -196,6 +206,19 @@ Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
     // 根据 enableStreaming 决定使用流式或非流式
     const useStreaming = enableStreaming ?? true; // 默认使用流式
 
+    // 创建带有自定义超时的 AbortController
+    const timeoutController = new AbortController();
+    timeoutId = setTimeout(() => {
+      timeoutController.abort();
+    }, requestMaxDuration);
+
+    // 组合原始请求的AbortSignal和超时的AbortSignal
+    const originalAbortSignal = req.signal;
+    const combinedAbortSignal = AbortSignal.any([originalAbortSignal, timeoutController.signal]);
+
+    // 当请求完成时清理超时
+    // cleanup defined in outer scope
+
     const commonConfig: any = {
       // model: google("gemini-2.5-flash-preview-05-20"),
       // model: google("gemini-2.5-pro"),
@@ -215,7 +238,7 @@ Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
       //   },
       // },
       messages: enhancedMessages,
-      abortSignal,  // 传递 AbortSignal 以支持取消请求
+      abortSignal: combinedAbortSignal,  // 使用组合的AbortSignal以支持取消请求和超时
       tools: outputMode === "svg"
         ? {
           display_svg: {
@@ -350,6 +373,8 @@ IMPORTANT: Keep edits concise:
         onError: errorHandler,
         // 在流式响应结束时添加 token 使用信息到 message metadata
         onFinish: async ({ responseMessage, messages }) => {
+          cleanup(); // 清理超时定时器
+
           const endTime = Date.now();
           const durationMs = endTime - startTime;
 
@@ -403,6 +428,8 @@ IMPORTANT: Keep edits concise:
       // 注意：非流式模式下不自动执行工具调用，让客户端处理
       // 这样可以保持与流式模式一致的体验
       const result = await generateText(commonConfig as any);
+
+      cleanup(); // 清理超时定时器
 
       const endTime = Date.now();
       const durationMs = endTime - startTime;
@@ -492,6 +519,12 @@ IMPORTANT: Keep edits concise:
       });
     }
   } catch (error) {
+    try {
+      cleanup(); // 清理超时定时器
+    } catch {
+      // cleanup可能不可用，忽略错误
+    }
+
     console.error('Error in chat route:', error);
     // 提供更详细的错误信息
     const errorMessage = error instanceof Error ? error.message : String(error);

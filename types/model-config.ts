@@ -4,6 +4,7 @@ export interface EndpointModelConfig {
     label: string;
     description?: string;
     isStreaming?: boolean; // 该模型是否使用流式输出，默认 false
+    maxDuration?: number; // 最大请求时长（秒），默认 300
     isValidated?: boolean; // 模型是否已验证通过
     validationTime?: number; // 最后验证时间
     createdAt: number;
@@ -26,6 +27,7 @@ export interface RuntimeModelConfig {
     apiKey: string;
     label?: string;
     enableStreaming?: boolean; // 是否启用流式输出，默认 false
+    maxDuration?: number; // 最大请求时长（秒），默认 300
 }
 
 export interface RuntimeModelOption extends RuntimeModelConfig {
@@ -34,6 +36,7 @@ export interface RuntimeModelOption extends RuntimeModelConfig {
     endpointName: string;
     providerHint: string;
     isStreaming?: boolean; // 继承模型的流式配置
+    maxDuration?: number; // 继承模型的最大请求时长配置
 }
 
 export interface ModelRegistryState {

@@ -1,11 +1,11 @@
 import { generateText } from "ai";
 import { resolveChatModel } from "@/lib/server-models";
 
-export const maxDuration = 60; // 1 minute timeout
+export const maxDuration = 60; // 模型验证API的最大超时时间保持60秒
 
 export async function POST(req: Request) {
   try {
-    const { baseUrl, apiKey, modelId } = await req.json();
+    const { baseUrl, apiKey, modelId, maxDuration: requestMaxDuration } = await req.json();
 
     if (!baseUrl || !apiKey || !modelId) {
       return Response.json(
@@ -37,6 +37,9 @@ export async function POST(req: Request) {
       // 发送一个简单的测试消息
       const testMessage = "Hello! Please respond with a simple 'OK' to confirm the connection.";
       
+      // 使用传入的maxDuration，默认30秒，最大60秒
+      const testMaxDuration = Math.min((requestMaxDuration ?? 30) * 1000, 60000);
+      
       const startTime = Date.now();
       const result = await generateText({
         model: resolvedModel.model,
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
         ],
         temperature: 0,
         maxRetries: 1, // 最多重试一次
-        abortSignal: AbortSignal.timeout(30000), // 30秒超时
+        abortSignal: AbortSignal.timeout(testMaxDuration),
       });
 
       const endTime = Date.now();

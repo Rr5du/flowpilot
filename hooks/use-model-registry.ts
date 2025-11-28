@@ -39,6 +39,9 @@ const normalizeModel = (
         label,
         description: model.description?.trim() || undefined,
         isStreaming: model.isStreaming ?? false, // 默认非流式
+        maxDuration: model.maxDuration ?? 300, // 默认300秒
+        isValidated: model.isValidated,
+        validationTime: model.validationTime,
         createdAt: model.createdAt ?? timestamp,
         updatedAt: timestamp,
     };
@@ -113,6 +116,7 @@ const flattenModels = (
             endpointName: endpoint.name,
             providerHint: deriveProviderHint(endpoint.baseUrl),
             isStreaming: model.isStreaming ?? false, // 添加流式配置
+            maxDuration: model.maxDuration ?? 300, // 添加最大请求时长配置
         }))
     );
 };
