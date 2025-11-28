@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <linearGradient id="catGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+    <linearGradient id="dogGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="600" fill="#f8f9fa"/>
+  
+  <!-- Cat - Left Side -->
+  <g transform="translate(-80, 0)">
+    <!-- Cat body -->
+    <ellipse cx="400" cy="380" rx="120" ry="100" fill="#e9ecef" stroke="#495057" stroke-width="1.6"/>
+    <!-- Cat head -->
+    <circle cx="400" cy="240" r="80" fill="#e9ecef" stroke="#495057" stroke-width="1.6"/>
+    <!-- Left ear -->
+    <path d="M 340 200 L 320 140 L 360 180 Z" fill="#e9ecef" stroke="#495057" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M 335 185 L 325 155 L 350 180 Z" fill="#ffc9d4"/>
+    <!-- Right ear -->
+    <path d="M 460 200 L 480 140 L 440 180 Z" fill="#e9ecef" stroke="#495057" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M 465 185 L 475 155 L 450 180 Z" fill="#ffc9d4"/>
+    <!-- Left eye -->
+    <ellipse cx="370" cy="230" rx="12" ry="18" fill="#495057"/>
+    <ellipse cx="372" cy="225" rx="5" ry="7" fill="#ffffff"/>
+    <!-- Right eye -->
+    <ellipse cx="430" cy="230" rx="12" ry="18" fill="#495057"/>
+    <ellipse cx="432" cy="225" rx="5" ry="7" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M 400 250 L 395 260 L 405 260 Z" fill="#ff6b9d"/>
+    <!-- Mouth -->
+    <path d="M 400 260 Q 385 270 380 265" fill="none" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 400 260 Q 415 270 420 265" fill="none" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Whiskers left -->
+    <line x1="340" y1="245" x2="280" y2="240" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="340" y1="255" x2="280" y2="260" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Whiskers right -->
+    <line x1="460" y1="245" x2="520" y2="240" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="460" y1="255" x2="520" y2="260" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Front paws -->
+    <ellipse cx="360" cy="470" rx="24" ry="32" fill="#e9ecef" stroke="#495057" stroke-width="1.6"/>
+    <ellipse cx="440" cy="470" rx="24" ry="32" fill="#e9ecef" stroke="#495057" stroke-width="1.6"/>
+    <!-- Tail -->
+    <path d="M 500 360 Q 560 340 580 380 Q 590 410 560 420" fill="none" stroke="#495057" stroke-width="20" stroke-linecap="round" opacity="0.8"/>
+    <path d="M 500 360 Q 560 340 580 380 Q 590 410 560 420" fill="none" stroke="#e9ecef" stroke-width="16" stroke-linecap="round"/>
+    <!-- Highlight -->
+    <ellipse cx="400" cy="340" rx="100" ry="60" fill="url(#catGlow)"/>
+  </g>
+  
+  <!-- Dog - Right Side -->
+  <g transform="translate(180, 0)">
+    <!-- Dog body -->
+    <ellipse cx="400" cy="380" rx="110" ry="95" fill="#d4a574" stroke="#495057" stroke-width="1.6"/>
+    <!-- Dog head -->
+    <ellipse cx="400" cy="250" rx="70" ry="75" fill="#d4a574" stroke="#495057" stroke-width="1.6"/>
+    <!-- Snout -->
+    <ellipse cx="400" cy="280" rx="45" ry="35" fill="#e8c9a0" stroke="#495057" stroke-width="1.6"/>
+    <!-- Left ear (floppy) -->
+    <ellipse cx="350" cy="220" rx="28" ry="50" fill="#c49060" stroke="#495057" stroke-width="1.6" transform="rotate(-25 350 220)"/>
+    <!-- Right ear (floppy) -->
+    <ellipse cx="450" cy="220" rx="28" ry="50" fill="#c49060" stroke="#495057" stroke-width="1.6" transform="rotate(25 450 220)"/>
+    <!-- Left eye -->
+    <ellipse cx="375" cy="240" rx="10" ry="14" fill="#495057"/>
+    <ellipse cx="377" cy="236" rx="4" ry="6" fill="#ffffff"/>
+    <!-- Right eye -->
+    <ellipse cx="425" cy="240" rx="10" ry="14" fill="#495057"/>
+    <ellipse cx="427" cy="236" rx="4" ry="6" fill="#ffffff"/>
+    <!-- Nose -->
+    <ellipse cx="400" cy="285" rx="12" ry="10" fill="#495057"/>
+    <!-- Mouth -->
+    <path d="M 400 295 Q 385 305 380 300" fill="none" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 400 295 Q 415 305 420 300" fill="none" stroke="#495057" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Tongue -->
+    <ellipse cx="400" cy="310" rx="10" ry="8" fill="#ff6b9d"/>
+    <!-- Front paws -->
+    <ellipse cx="365" cy="470" rx="22" ry="30" fill="#d4a574" stroke="#495057" stroke-width="1.6"/>
+    <ellipse cx="435" cy="470" rx="22" ry="30" fill="#d4a574" stroke="#495057" stroke-width="1.6"/>
+    <!-- Tail (wagging up) -->
+    <path d="M 490 370 Q 530 350 540 310" fill="none" stroke="#495057" stroke-width="18" stroke-linecap="round" opacity="0.8"/>
+    <path d="M 490 370 Q 530 350 540 310" fill="none" stroke="#d4a574" stroke-width="14" stroke-linecap="round"/>
+    <!-- Highlight -->
+    <ellipse cx="400" cy="340" rx="90" ry="55" fill="url(#dogGlow)"/>
+  </g>
+  
+  <!-- Labels -->
+  <text x="320" y="540" font-size="24" font-weight="500" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle" fill="#495057">Cute Cat</text>
+  <text x="580" y="540" font-size="24" font-weight="500" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle" fill="#495057">Happy Dog</text>
+</svg>

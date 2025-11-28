@@ -542,12 +542,12 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
         case "g": {
             const children: SvgElement[] = [];
             const groupTransform = node.getAttribute("transform");
-            const combinedTransform = [inheritedTransform, groupTransform]
-                .filter(Boolean)
-                .join(" ")
-                .trim();
             
-            // 递归解析子元素
+            // ✅ 修复：子元素不应该继承父元素的 transform
+            // 因为渲染时子元素会被放在 <g> 容器内，容器已经有 transform 了
+            // 如果子元素也包含父 transform，就会累加两次
+            
+            // 递归解析子元素（不传入 transform，让子元素使用自己的原始坐标）
             Array.from(node.children).forEach(child => {
                 if (!(child instanceof Element)) return;
                 const tagName = child.tagName.toLowerCase();
@@ -555,9 +555,16 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 if (["defs", "symbol", "marker", "pattern", "mask", "clippath", "style", "script", "title", "desc", "metadata"].includes(tagName)) {
                     return;
                 }
-                const parsed = parseElement(child, combinedTransform);
+                // 不传入 inheritedTransform，子元素保持原始坐标
+                const parsed = parseElement(child, undefined);
                 if (parsed) children.push(parsed);
             });
+            
+            // 组合父元素传入的 transform 和当前 g 的 transform
+            const combinedTransform = [inheritedTransform, groupTransform]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
             
             return {
                 id: node.getAttribute("id") || nanoid(),
@@ -571,7 +578,8 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 strokeMiterlimit: parseOptionalNumber(node.getAttribute("stroke-miterlimit")),
                 fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
-                transform: parseTransform(groupTransform || null),
+                // 保存组合后的 transform（包括继承的）
+                transform: parseTransform(combinedTransform || null),
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
             } as GroupElement;
@@ -655,13 +663,21 @@ function parseSvgMarkup(svg: string): { doc: SvgDocument; elements: SvgElement[]
             }
 
             const parsedElement = parseElement(node, inheritedTransform);
+            if (parsedElement) {
+                elements.push(parsedElement);
+            }
+            
+            // ✅ 修复：如果是 <g> 元素，不要再递归处理子元素
+            // 因为 parseElement(case "g") 已经在内部递归处理了子元素
+            if (tagName === "g") {
+                continue;  // <g> 的子元素已经在 parseElement 中处理，不要重复遍历
+            }
+            
+            // 对于其他非 <g> 元素，如果有子元素则继续遍历
             const nextTransform = [inheritedTransform, node.getAttribute("transform")]
                 .filter(Boolean)
                 .join(" ")
                 .trim();
-            if (parsedElement) {
-                elements.push(parsedElement);
-            }
             if (node.children && node.children.length > 0) {
                 walker(Array.from(node.children), nextTransform || undefined);
             }
