@@ -106,6 +106,16 @@ function getBounds(element: SvgElement): { x: number; y: number; width: number; 
                 },
                 element.transform
             );
+        case "circle":
+            return applyTransform(
+                {
+                    x: element.cx - element.r,
+                    y: element.cy - element.r,
+                    width: element.r * 2,
+                    height: element.r * 2,
+                },
+                element.transform
+            );
         case "ellipse":
             return applyTransform(
                 {
@@ -129,13 +139,94 @@ function getBounds(element: SvgElement): { x: number; y: number; width: number; 
                 height: Math.abs(y2 - y1) + padding * 2,
             };
         }
-        case "text":
+        case "text": {
+            const fontSize = element.fontSize || 16;
+            let textHeight = fontSize;
+            let textWidth = (element.text?.length || 1) * fontSize * 0.6;
+            
+            // If we have tspans, calculate better bounds
+            if (element.tspans && element.tspans.length > 0) {
+                textHeight = fontSize * element.tspans.length * 1.2; // Line height factor
+                textWidth = Math.max(...element.tspans.map(t => (t.text?.length || 1) * fontSize * 0.6));
+            }
+            
+            // Adjust for text-anchor
+            let xOffset = 0;
+            if (element.textAnchor === "middle") {
+                xOffset = -textWidth / 2;
+    } else if (element.textAnchor === "end") {
+                xOffset = -textWidth;
+            }
+            
+            return applyTransform(
+                {
+                    x: element.x + xOffset,
+                    y: element.y - fontSize * 0.8, // Approximate baseline adjustment
+                    width: Math.max(textWidth, 10),
+                    height: textHeight,
+                },
+                element.transform
+            );
+        }
+        case "image":
             return applyTransform(
                 {
                     x: element.x,
-                    y: element.y - (element.fontSize || 16),
-                    width: Math.max((element.text?.length || 1) * (element.fontSize || 16) * 0.5, 10),
-                    height: element.fontSize || 16,
+                    y: element.y,
+                    width: element.width,
+                    height: element.height,
+                },
+                element.transform
+            );
+        case "path": {
+            // For paths, we need to estimate bounds from the path data
+            // This is a simplified approach - ideally we'd parse the path
+            return applyTransform(
+                {
+                    x: element.transform?.x ?? 0,
+                    y: element.transform?.y ?? 0,
+                    width: 100, // Fallback estimate
+                    height: 100,
+                },
+                element.transform
+            );
+        }
+        case "g": {
+            // For groups, calculate the bounding box of all children
+            if (!element.children || element.children.length === 0) {
+                return null;
+            }
+            
+            const childBounds = element.children
+                .map(child => getBounds(child))
+                .filter((b): b is NonNullable<typeof b> => b !== null);
+            
+            if (childBounds.length === 0) {
+                return null;
+            }
+            
+            const minX = Math.min(...childBounds.map(b => b.x));
+            const minY = Math.min(...childBounds.map(b => b.y));
+            const maxX = Math.max(...childBounds.map(b => b.x + b.width));
+            const maxY = Math.max(...childBounds.map(b => b.y + b.height));
+            
+            return applyTransform(
+                {
+                    x: minX,
+                    y: minY,
+                    width: maxX - minX,
+                    height: maxY - minY,
+                },
+                element.transform
+            );
+        }
+        case "use":
+            return applyTransform(
+                {
+                    x: element.x,
+                    y: element.y,
+                    width: element.width || 50,
+                    height: element.height || 50,
                 },
                 element.transform
             );
@@ -249,25 +340,46 @@ export function SvgStudio() {
 
     const getElementBoundsWithRef = React.useCallback(
         (el: SvgElement) => {
-            // Prefer math-based bounds for primitives to avoid lag
-            if (el.type === "rect" || el.type === "ellipse" || el.type === "line") {
-                const bounds = getBounds(el);
-                if (bounds) return bounds;
+            // First try to get calculated bounds for all types
+            const calculatedBounds = getBounds(el);
+            
+            // For simple shapes, prefer calculated bounds (more accurate)
+            if (el.type === "rect" || el.type === "ellipse" || el.type === "circle" || el.type === "line") {
+                if (calculatedBounds) {
+                    console.log(`[getBounds] ${el.type} ${el.id}:`, calculatedBounds);
+                    return calculatedBounds;
+                }
             }
 
+            // For complex elements (text, path, g, etc.), try DOM measurement first
             const node = elementRefs.current[el.id];
             if (node && "getBBox" in node) {
                 try {
                     const box = (node as SVGGraphicsElement).getBBox();
-                    return applyTransform(
+                    // getBBox returns local coordinates, apply transform
+                    const domBounds = applyTransform(
                         { x: box.x, y: box.y, width: box.width, height: box.height },
                         el.transform
                     );
-                } catch {
-                    // fall through
+                    // Only use DOM bounds if they're reasonable
+                    if (domBounds.width > 0 && domBounds.height > 0) {
+                        console.log(`[getBBox] ${el.type} ${el.id}:`, domBounds);
+                        return domBounds;
+                    }
+                } catch (error) {
+                    console.warn(`getBBox failed for ${el.type} element ${el.id}:`, error);
                 }
             }
-            return getBounds(el);
+            
+            // Fallback to calculated bounds
+            if (calculatedBounds) {
+                console.log(`[getBounds fallback] ${el.type} ${el.id}:`, calculatedBounds);
+                return calculatedBounds;
+            }
+            
+            // Last resort
+            console.warn(`No bounds available for element ${el.id} (${el.type})`);
+            return { x: 0, y: 0, width: 10, height: 10 };
         },
         []
     );
@@ -291,20 +403,35 @@ export function SvgStudio() {
         [getElementBoundsWithRef]
     );
 
+    // Helper function to find an element by ID in a nested structure (read-only)
+    const findElementById = useCallback((id: string, elementList: SvgElement[] = elements): SvgElement | null => {
+        for (const el of elementList) {
+            if (el.id === id) return el;
+            if (el.type === "g" && el.children) {
+                const found = findElementById(id, el.children);
+                if (found) return found;
+            }
+        }
+        return null;
+    }, [elements]);
+
     useEffect(() => {
         const targetId = selectedId || (selectedIds.size === 1 ? Array.from(selectedIds)[0] : null);
         if (!targetId) {
             setMeasuredBounds(null);
             return;
         }
-        const element = elements.find((item) => item.id === targetId);
+        // Use direct find for top-level elements, or findElementById for nested
+        const element = elements.find(el => el.id === targetId) || findElementById(targetId);
         if (!element) {
+            console.warn(`[measuredBounds] Element not found: ${targetId}`);
             setMeasuredBounds(null);
             return;
         }
         const bounds = getElementBoundsWithRef(element);
+        console.log(`[measuredBounds] Setting bounds for ${element.type} ${element.id}:`, bounds);
         setMeasuredBounds(bounds);
-    }, [selectedId, selectedIds, elements, getElementBoundsWithRef]);
+    }, [selectedId, selectedIds, elements, findElementById, getElementBoundsWithRef]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -758,8 +885,8 @@ export function SvgStudio() {
                 const ids = Array.from(selectedIds);
                 const boxes = ids
                     .map((id) => {
-                        const el = elements.find((item) => item.id === id && item.visible !== false);
-                        return el ? getElementBoundsWithRef(el) : null;
+                        const el = elements.find(e => e.id === id) || findElementById(id);
+                        return el && el.visible !== false ? getElementBoundsWithRef(el) : null;
                     })
                     .filter(Boolean) as Array<{ x: number; y: number; width: number; height: number }>;
                 if (boxes.length > 0) {
@@ -905,13 +1032,22 @@ export function SvgStudio() {
     };
 
     const handleElementPointerDown = (event: React.PointerEvent, element: SvgElement) => {
-        if (element.locked) return;
-        if (tool !== "select") return;
+        console.log(`[Click] Element clicked:`, element.id, element.type, element);
+        if (element.locked) {
+            console.log(`[Click] Element is locked, ignoring`);
+            return;
+        }
+        if (tool !== "select") {
+            console.log(`[Click] Tool is not select (${tool}), ignoring`);
+            return;
+        }
         event.stopPropagation();
         event.preventDefault();
         commitSnapshot();
         const point = canvasPoint(event);
         const alreadySelected = selectedIds.has(element.id);
+        console.log(`[Click] Already selected:`, alreadySelected, `Selected IDs:`, Array.from(selectedIds));
+        
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
             const next = new Set(selectedIds);
             if (alreadySelected) {
@@ -921,14 +1057,17 @@ export function SvgStudio() {
             }
             setSelectedIds(next);
             setSelectedId(next.size === 1 ? element.id : null);
+            console.log(`[Click] Multi-select, new selection:`, Array.from(next));
         } else {
             if (alreadySelected && selectedIds.size > 1) {
                 // 保持多选集合不变
                 setSelectedIds(new Set(selectedIds));
                 setSelectedId(null);
+                console.log(`[Click] Keeping multi-selection`);
             } else {
                 setSelectedIds(new Set([element.id]));
                 setSelectedId(element.id);
+                console.log(`[Click] Single select:`, element.id);
             }
         }
         dragLastPointRef.current = point;
@@ -940,8 +1079,12 @@ export function SvgStudio() {
     };
 
     const selectedElement = useMemo(
-        () => elements.find((item) => item.id === selectedId),
-        [elements, selectedId]
+        () => {
+            if (!selectedId) return null;
+            // Try top-level first for performance and mutability
+            return elements.find(el => el.id === selectedId) || findElementById(selectedId);
+        },
+        [selectedId, elements, findElementById]
     );
 
     const handlePropertyChange = <K extends keyof SvgElement>(key: K, value: SvgElement[K]) => {
@@ -1120,7 +1263,10 @@ export function SvgStudio() {
         const ids = Array.from(selectedIds);
         if (ids.length < 2) return;
         const list = ids
-            .map((id) => elements.find((el) => el.id === id && el.visible !== false))
+            .map((id) => {
+                const el = elements.find(e => e.id === id) || findElementById(id);
+                return el && el.visible !== false ? el : null;
+            })
             .filter(Boolean) as SvgElement[];
         if (list.length < 2) return;
         const sorted = [...list].sort((a, b) => elementCenter(a).x - elementCenter(b).x);
@@ -1148,7 +1294,10 @@ export function SvgStudio() {
         const ids = Array.from(selectedIds);
         if (ids.length < 3) return;
         const list = ids
-            .map((id) => elements.find((el) => el.id === id && el.visible !== false))
+            .map((id) => {
+                const el = elements.find(e => e.id === id) || findElementById(id);
+                return el && el.visible !== false ? el : null;
+            })
             .filter(Boolean) as SvgElement[];
         if (list.length < 3) return;
         const boundsList = list
@@ -1169,7 +1318,7 @@ export function SvgStudio() {
     const aiCopyStyleFromFirst = () => {
         const ids = Array.from(selectedIds);
         if (ids.length < 2) return;
-        const base = elements.find((el) => el.id === ids[0]);
+        const base = elements.find(e => e.id === ids[0]) || findElementById(ids[0]);
         if (!base) return;
         const styleKeys: Array<keyof SvgElement> = ["fill", "stroke", "strokeWidth", "opacity"];
         commitSnapshot();
@@ -1601,7 +1750,7 @@ export function SvgStudio() {
                                 )}
                                 {Array.from(selectedIds)
                                     .map((id) => {
-                                        const el = elements.find((item) => item.id === id);
+                                        const el = elements.find(e => e.id === id) || findElementById(id);
                                         if (!el || el.visible === false) return null;
                                         const bounds = getElementBoundsWithRef(el);
                                         if (!bounds) return null;
@@ -1659,7 +1808,7 @@ export function SvgStudio() {
                                 {(() => {
                                     const targetId = hoveredElementId || selectedId;
                                     if (!targetId) return null;
-                                    const element = elements.find(el => el.id === targetId);
+                                    const element = elements.find(e => e.id === targetId) || findElementById(targetId);
                                     if (!element || element.type === 'line' || element.locked || element.visible === false) return null;
                                     const anchors = getAnchorPoints(element);
                                     return anchors.map((anchor, i) => (

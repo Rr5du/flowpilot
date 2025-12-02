@@ -35,9 +35,13 @@ export function SvgElementRenderer({
     const transform = transformStyle(element);
     const commonProps = {
         ref: (node: SVGGraphicsElement | null) => registerRef(element.id, node),
-        onPointerDown: (event: React.PointerEvent) => onPointerDown(event, element),
+        onPointerDown: (event: React.PointerEvent) => {
+            console.log(`[SvgElementRenderer] onPointerDown triggered for:`, element.type, element.id);
+            onPointerDown(event, element);
+        },
         transform,
         className: cn(
+            element.className, // Preserve original CSS classes from imported SVG
             "cursor-default",
             (selectedIds.has(element.id) || selectedId === element.id) &&
             "outline-none ring-2 ring-offset-2 ring-blue-500/50"
@@ -166,7 +170,8 @@ export function SvgElementRenderer({
             return (
                 <text
                     key={element.id}
-                    {...commonProps}
+                    ref={(node: SVGGraphicsElement | null) => registerRef(element.id, node)}
+                    transform={transform}
                     x={element.x}
                     y={element.y}
                     fill={element.fill || "#0f172a"}
@@ -176,12 +181,34 @@ export function SvgElementRenderer({
                     textAnchor={element.textAnchor}
                     dominantBaseline={element.dominantBaseline}
                     filter={element.filter}
+                    // Allow clicks to pass through text to elements behind
+                    pointerEvents="none"
                     className={cn(
                         "select-none",
-                        element.visible === (false as any) && "opacity-30"
+                        element.visible === (false as any) && "opacity-30",
+                        (selectedIds.has(element.id) || selectedId === element.id) &&
+                        "outline-none ring-2 ring-offset-2 ring-blue-500/50"
                     )}
                 >
-                    {element.text}
+                    {element.tspans && element.tspans.length > 0 ? (
+                        element.tspans.map((tspan, index) => (
+                            <tspan
+                                key={index}
+                                x={tspan.x}
+                                y={tspan.y}
+                                dx={tspan.dx}
+                                dy={tspan.dy}
+                                fontSize={tspan.fontSize}
+                                fontWeight={tspan.fontWeight}
+                                fontFamily={tspan.fontFamily}
+                                fill={tspan.fill}
+                            >
+                                {tspan.text}
+                            </tspan>
+                        ))
+                    ) : (
+                        element.text
+                    )}
                 </text>
             );
         case "image":
@@ -220,12 +247,23 @@ export function SvgElementRenderer({
             return (
                 <g
                     key={element.id}
-                    {...commonProps}
+                    ref={(node: SVGGraphicsElement | null) => registerRef(element.id, node)}
+                    transform={transform}
+                    className={cn(
+                        "cursor-default",
+                        (selectedIds.has(element.id) || selectedId === element.id) &&
+                        "outline-none ring-2 ring-offset-2 ring-blue-500/50"
+                    )}
                     fill={element.fill}
                     stroke={element.stroke}
                     strokeWidth={element.strokeWidth}
                     opacity={element.opacity}
                     filter={element.filter}
+                    fontSize={element.fontSize}
+                    fontWeight={element.fontWeight}
+                    fontFamily={element.fontFamily}
+                    textAnchor={element.textAnchor}
+                    dominantBaseline={element.dominantBaseline}
                 >
                     {element.children.map((child) => (
                         <SvgElementRenderer

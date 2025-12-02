@@ -39,6 +39,7 @@ export type SvgElementBase = {
     visible?: boolean;
     locked?: boolean;
     filter?: string;
+    className?: string; // CSS class names for styling
 };
 
 export type RectElement = SvgElementBase & {
@@ -287,6 +288,7 @@ function elementToMarkup(element: SvgElement): string {
         element.markerStart ? `marker-start="${element.markerStart}"` : "",
         element.opacity != null ? `opacity="${element.opacity}"` : "",
         element.filter ? `filter="${element.filter}"` : "",
+        element.className ? `class="${element.className}"` : "", // Preserve CSS classes
     ]
         .filter(Boolean)
         .join(" ");
@@ -342,6 +344,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
         .join(" ")
         .trim();
     const transform = parseTransform(combinedTransform || null);
+    const className = node.getAttribute("class") || undefined; // Preserve CSS classes
     switch (node.tagName.toLowerCase()) {
         case "rect":
             return {
@@ -365,6 +368,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -388,6 +392,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -413,6 +418,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -437,6 +443,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -458,6 +465,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -494,6 +502,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -521,6 +530,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 markerStart: node.getAttribute("marker-start") || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -541,6 +551,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -561,6 +572,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 strokeWidth: parseOptionalNumber(node.getAttribute("stroke-width")),
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform,
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
@@ -605,6 +617,7 @@ function parseElement(node: Element, inheritedTransform?: string): SvgElement | 
                 fillRule: (node.getAttribute("fill-rule") as any) || undefined,
                 opacity: parseOptionalNumber(node.getAttribute("opacity")),
                 transform: parseTransform(groupTransform || null),
+                className,
                 visible: node.getAttribute("data-visible") !== "false",
                 locked: node.getAttribute("data-locked") === "true",
                 filter: node.getAttribute("filter") || undefined,
