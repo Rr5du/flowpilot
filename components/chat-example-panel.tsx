@@ -1,145 +1,139 @@
-import { Button } from "@/components/ui/button";
-import { Settings2, Sparkles } from "lucide-react";
-
 type ExamplePanelProps = {
     setInput: (input: string) => void;
     setFiles: (files: File[]) => void;
-    onOpenBriefPanel?: () => void;
-    briefBadges?: string[];
-    briefSummary?: string;
+};
+
+type Example = {
+    name: string;
+    action?: () => Promise<void>;
+    prompt?: string;
 };
 
 export default function ExamplePanel({
     setInput,
     setFiles,
-    onOpenBriefPanel,
-    briefBadges,
-    briefSummary,
 }: ExamplePanelProps) {
-    // New handler for the "Replicate this flowchart" button
     const handleReplicateFlowchart = async () => {
         setInput("请帮我复刻这张流程图。");
-
         try {
-            // Fetch the example image
             const response = await fetch("/example.png");
             const blob = await response.blob();
             const file = new File([blob], "example.png", { type: "image/png" });
-
-            // Set the file to the files state
             setFiles([file]);
         } catch (error) {
             console.error("Error loading example image:", error);
         }
     };
 
-    // Handler for the "Replicate this in aws style" button
     const handleReplicateArchitecture = async () => {
         setInput("请使用 AWS 设计风格复刻这张架构图。");
-
         try {
-            // Fetch the architecture image
             const response = await fetch("/architecture.png");
             const blob = await response.blob();
-            const file = new File([blob], "architecture.png", {
-                type: "image/png",
-            });
-
-            // Set the file to the files state
+            const file = new File([blob], "architecture.png", { type: "image/png" });
             setFiles([file]);
         } catch (error) {
             console.error("Error loading architecture image:", error);
         }
     };
-    const fallbackBadges = ["模式·空白起稿", "视觉·产品规范", "护栏·单屏锁定"];
-    const displayBadges =
-        briefBadges && briefBadges.length > 0 ? briefBadges : fallbackBadges;
-    const clippedBadges = displayBadges.slice(0, 4);
-    const summaryText =
-        briefSummary && briefSummary.length > 0
-            ? briefSummary
-            : fallbackBadges.slice(0, 3).join(" · ");
+
+    const categories: {
+        title: string;
+        badge?: string;
+        examples: Example[];
+    }[] = [
+        {
+            title: "业务流程",
+            examples: [
+                { name: "用户注册流程", prompt: "创建一个用户注册登录的业务流程图" },
+                { name: "订单处理流程", prompt: "绘制电商订单处理流程，从下单到发货" },
+            ],
+        },
+        {
+            title: "系统架构",
+            examples: [
+                { name: "AWS 云架构", action: handleReplicateArchitecture },
+                { name: "微服务架构", prompt: "画一个微服务架构图，包含网关、服务注册中心、配置中心" },
+            ],
+        },
+        {
+            title: "数据图表",
+            examples: [
+                { name: "ER 关系图", prompt: "绘制电商系统的 ER 图，包含用户、商品、订单实体" },
+                { name: "组织架构", prompt: "绘制组织架构图，展示公司层级结构" },
+            ],
+        },
+        {
+            title: "SVG 可视化",
+            badge: "热门",
+            examples: [
+                { name: "数据看板", prompt: "为 B2B SaaS 仪表盘生成 SVG 销售看板：包含月度 ARR 折线、区域营收占比环形图" },
+                { name: "图标集", prompt: "为采购平台绘制特性图标：供应链、库存、合规、发票；统一风格、蓝灰配色" },
+            ],
+        },
+    ];
 
     return (
-        <div className="flex w-full justify-center px-1 py-2">
-            <div className="w-full max-w-[min(520px,80%)] space-y-4">
-                <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-sm">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                                <Sparkles className="h-4 w-4 text-amber-400" />
-                                FlowPilot Brief 偏好
-                            </div>
-                            <p className="text-base font-semibold text-slate-900">
-                                {summaryText}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                                FlowPilot 会随每次生成附上这些偏好，先设定就能保持同一种风格。
-                            </p>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="inline-flex items-center gap-1 rounded-full border-slate-300 px-4"
-                            onClick={() => onOpenBriefPanel?.()}
-                            disabled={!onOpenBriefPanel}
-                        >
-                            <Settings2 className="h-3.5 w-3.5" />
-                            配置 Brief
-                        </Button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                        {clippedBadges.map((badge, index) => (
-                            <span
-                                key={`${badge}-${index}`}
-                                className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-medium text-slate-700 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
-                            >
-                                {badge}
-                            </span>
-                        ))}
-                        {displayBadges.length > clippedBadges.length && (
-                            <span className="rounded-full border border-dashed border-slate-200/80 px-2.5 py-0.5 text-[11px] text-slate-500">
-                                +{displayBadges.length - clippedBadges.length}
-                            </span>
-                        )}
-                    </div>
+        <div className="w-full px-6 py-8">
+            <div className="max-w-3xl mx-auto">
+                {/* 标题 */}
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-semibold text-slate-900 mb-2">快速开始</h2>
+                    <p className="text-sm text-slate-500">选择场景模板或上传图片开始创作</p>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-sm">
-                    <p className="mb-1 text-sm text-slate-700">
-                        FlowPilot 既可以空白起稿，也能参考上传的示例；试试下面的模板更快进入状态。
-                    </p>
-                    <p className="mb-3 text-xs text-slate-500">
-                        点击任意选项即可自动填充输入框，必要时会附带示例附件。
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-300 hover:bg-white whitespace-nowrap"
-                            onClick={handleReplicateArchitecture}
+
+                {/* 分类网格 */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    {categories.map((category, idx) => (
+                        <div
+                            key={idx}
+                            className="group rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all p-4"
                         >
-                            复刻这份 AWS 架构
-                        </button>
-                        <button
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-300 hover:bg-white whitespace-nowrap"
-                            onClick={handleReplicateFlowchart}
-                        >
-                            复刻这张流程图截图
-                        </button>
-                        <button
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-300 hover:bg-white whitespace-nowrap"
-                            onClick={() => setInput("请随便画一只猫咪。")}
-                        >
-                            随手涂鸦（轻松一下）
-                        </button>
-                        <button
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-300 hover:bg-white whitespace-nowrap"
-                            onClick={() =>
-                                setInput("请创建一份包含前台、后台与支撑流程三列的服务蓝图。")
-                            }
-                        >
-                            服务蓝图排版
-                        </button>
-                    </div>
+                            {/* 分类标题 */}
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-slate-900">
+                                    {category.title}
+                                </h3>
+                                {category.badge && (
+                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                                        {category.badge}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* 示例列表 */}
+                            <div className="space-y-2">
+                                {category.examples.map((example, exIdx) => (
+                                    <button
+                                        key={exIdx}
+                                        onClick={() => {
+                                            if (example.action) {
+                                                example.action();
+                                            } else if (example.prompt) {
+                                                setInput(example.prompt);
+                                            }
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                                    >
+                                        {example.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* 上传图片按钮 */}
+                <div className="flex justify-center">
+                    <button
+                        onClick={handleReplicateFlowchart}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        上传图片转换为图表
+                    </button>
                 </div>
             </div>
         </div>

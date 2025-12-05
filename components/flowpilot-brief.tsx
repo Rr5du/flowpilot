@@ -50,7 +50,7 @@ export type FlowPilotBriefState = {
 };
 
 export const DEFAULT_BRIEF_STATE: FlowPilotBriefState = {
-    mode: "guided",
+    mode: "free",
     intent: "draft",
     tone: "balanced",
     focus: ["clarity"],

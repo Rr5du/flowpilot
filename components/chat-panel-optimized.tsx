@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaGithub } from "react-icons/fa";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {FaGithub} from "react-icons/fa";
 import {
     AlertCircle,
     CheckCircle2,
@@ -12,8 +12,11 @@ import {
     PanelRightClose,
     PauseCircle,
     Sparkles,
+    MoreHorizontal,
+    LayoutGrid,
     MessageSquare,
     History,
+    Settings,
 } from "lucide-react";
 import {
     Card,
@@ -22,7 +25,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -30,19 +33,19 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { ChatInputOptimized } from "@/components/chat-input-optimized";
-import { ChatMessageDisplay } from "./chat-message-display-optimized";
-import { useDiagram } from "@/contexts/diagram-context";
-import { useConversationManager } from "@/contexts/conversation-context";
-import { useSvgEditor } from "@/contexts/svg-editor-context";
-import { cn, formatXML, replaceXMLParts, convertToLegalXml } from "@/lib/utils";
-import { buildSvgRootXml, repairSvg } from "@/lib/svg";
-import { SessionStatus } from "@/components/session-status";
-import { QuickActionBar } from "@/components/quick-action-bar";
-import type { QuickActionDefinition } from "@/components/quick-action-bar";
-import { FlowShowcaseGallery } from "./flow-showcase-gallery";
+import {useChat} from "@ai-sdk/react";
+import {DefaultChatTransport} from "ai";
+import {ChatInputOptimized} from "@/components/chat-input-optimized";
+import {ChatMessageDisplay} from "./chat-message-display-optimized";
+import {useDiagram} from "@/contexts/diagram-context";
+import {useConversationManager} from "@/contexts/conversation-context";
+import {useSvgEditor} from "@/contexts/svg-editor-context";
+import {cn, formatXML, replaceXMLParts, convertToLegalXml} from "@/lib/utils";
+import {buildSvgRootXml, repairSvg, svgToDataUrl} from "@/lib/svg";
+import {SessionStatus} from "@/components/session-status";
+import {QuickActionBar} from "@/components/quick-action-bar";
+import type {QuickActionDefinition} from "@/components/quick-action-bar";
+
 import {
     FlowPilotBriefLauncher,
     FlowPilotBriefDialog,
@@ -54,29 +57,34 @@ import {
     DIAGRAM_TYPE_OPTIONS,
     FLOWPILOT_FREEFORM_PROMPT,
 } from "./flowpilot-brief";
-import { ReportBlueprintTray } from "./report-blueprint-tray";
-import { useChatState } from "@/hooks/use-chat-state";
-import { EMPTY_MXFILE } from "@/lib/diagram-templates";
-import { ModelComparisonConfigDialog } from "@/components/model-comparison-config-dialog";
-import { IntelligenceToolbar } from "@/features/chat-panel/components/intelligence-toolbar";
-import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
+import {ReportBlueprintTray} from "./report-blueprint-tray";
+import {useChatState} from "@/hooks/use-chat-state";
+import {EMPTY_MXFILE} from "@/lib/diagram-templates";
+import {ModelComparisonConfigDialog} from "@/components/model-comparison-config-dialog";
+import {ToolPanelSidebar} from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
-    FLOW_SHOWCASE_PRESETS,
-    QUICK_ACTIONS,
-    type FlowShowcasePreset,
-} from "@/features/chat-panel/constants";
-import { useComparisonWorkbench } from "@/features/chat-panel/hooks/use-comparison-workbench";
-import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-orchestrator";
-import type { DiagramRenderingMode, DiagramResultEntry, DiagramUpdateMeta, ToolPanel } from "@/features/chat-panel/types";
-import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
-import { useModelRegistry } from "@/hooks/use-model-registry";
-import { ModelConfigDialog } from "@/components/model-config-dialog";
-import { ConversationHistoryDialog } from "@/components/conversation-history-dialog";
-import { DiagramGalleryDialog } from "@/components/diagram-gallery-dialog";
-import { useConversationHistory, type ConversationHistoryItem } from "@/hooks/use-conversation-history";
-import type { RuntimeModelConfig } from "@/types/model-config";
-import { TemplateGallery } from "@/components/template-gallery";
-import { BriefQuickControl } from "@/components/brief-quick-control";
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {QUICK_ACTIONS, TOOLBAR_ACTIONS, TOOLBAR_PANELS} from "@/features/chat-panel/constants";
+import {useComparisonWorkbench} from "@/features/chat-panel/hooks/use-comparison-workbench";
+import {useDiagramOrchestrator} from "@/features/chat-panel/hooks/use-diagram-orchestrator";
+import type {DiagramRenderingMode, DiagramResultEntry, DiagramUpdateMeta, ToolPanel} from "@/features/chat-panel/types";
+import {serializeAttachments} from "@/features/chat-panel/utils/attachments";
+import {useModelRegistry} from "@/hooks/use-model-registry";
+import {ModelConfigDialog} from "@/components/model-config-dialog";
+import {ConversationHistoryDialog} from "@/components/conversation-history-dialog";
+import {DiagramGalleryDialog} from "@/components/diagram-gallery-dialog";
+import {useConversationHistory, type ConversationHistoryItem} from "@/hooks/use-conversation-history";
+import type {RuntimeModelConfig} from "@/types/model-config";
+import {TemplateGallery} from "@/components/template-gallery";
+import {BriefQuickControl} from "@/components/brief-quick-control";
+import {RenderModeToggle} from "@/components/render-mode-toggle";
+import {SmartSvgConverterDialog} from "@/components/smart-svg-converter-dialog";
 
 interface ChatPanelProps {
     onCollapse?: () => void;
@@ -86,11 +94,11 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanelOptimized({
-    onCollapse,
-    isCollapsible = false,
-    renderMode: controlledRenderMode,
-    onRenderModeChange,
-}: ChatPanelProps) {
+                                               onCollapse,
+                                               isCollapsible = false,
+                                               renderMode: controlledRenderMode,
+                                               onRenderModeChange,
+                                           }: ChatPanelProps) {
     const {
         loadDiagram: onDisplayChart,
         chartXML,
@@ -110,7 +118,7 @@ export default function ChatPanelOptimized({
         restoreHistoryAt: restoreSvgHistoryAt,
         setStreamingSvgContent,
     } = useSvgEditor();
-    const [internalRenderMode, setInternalRenderMode] = useState<DiagramRenderingMode>("drawio");
+    const [internalRenderMode, setInternalRenderMode] = useState<DiagramRenderingMode>("svg");
     const renderMode = controlledRenderMode ?? internalRenderMode;
     const isSvgMode = renderMode === "svg";
     const handleRenderModeChange = useCallback(
@@ -144,7 +152,7 @@ export default function ChatPanelOptimized({
         updateActiveBranchDiagram,
         resetActiveBranch,
     } = useConversationManager();
-    const { handleDiagramXml, tryApplyRoot, updateLatestDiagramXml, getLatestDiagramXml } =
+    const {handleDiagramXml, tryApplyRoot, updateLatestDiagramXml, getLatestDiagramXml} =
         useDiagramOrchestrator({
             chartXML,
             onDisplayChart,
@@ -241,7 +249,7 @@ export default function ChatPanelOptimized({
                     ...endpoint,
                     models: endpoint.models.map(model => {
                         if (model.id === modelId) {
-                            return { ...model, isStreaming, updatedAt: Date.now() };
+                            return {...model, isStreaming, updatedAt: Date.now()};
                         }
                         return model;
                     }),
@@ -260,13 +268,15 @@ export default function ChatPanelOptimized({
     const [briefState, setBriefState] = useState<FlowPilotBriefState>(() => ({
         ...DEFAULT_BRIEF_STATE,
     }));
-    const [commandTab, setCommandTab] = useState<"starter" | "report" | "showcase" | "templates">(
+    const [commandTab, setCommandTab] = useState<"starter" | "report" | "templates">(
         "templates"
     );
     const [activeToolPanel, setActiveToolPanel] = useState<ToolPanel | null>(null);
     const [isToolSidebarOpen, setIsToolSidebarOpen] = useState(false);
     const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
     const [isBriefDialogOpen, setIsBriefDialogOpen] = useState(false);
+    const [isSmartSvgConverterOpen, setIsSmartSvgConverterOpen] = useState(false);
+    const [prefillSvgForConvert, setPrefillSvgForConvert] = useState<string>("");
     const [contactCopyState, setContactCopyState] = useState<"idle" | "copied">(
         "idle"
     );
@@ -387,24 +397,8 @@ export default function ChatPanelOptimized({
                     .join("\\n")}`
                 : "";
 
-        return { prompt, badges, mode: briefMode };
+        return {prompt, badges, mode: briefMode};
     }, [briefMode, briefState]);
-    const briefDisplayBadges =
-        briefContext.badges.length > 0
-            ? briefContext.badges
-            : briefMode === "free"
-                ? [
-                    "自由·AI 自主选型",
-                    "默认·干净美观",
-                ]
-                : [
-                    "模式·空白起稿",
-                    "视觉·中性简约",
-                    "重点·简洁清晰",
-                ];
-    const briefSummary = briefDisplayBadges.slice(0, 3).join(" · ");
-
-
     const {
         messages,
         sendMessage,
@@ -418,21 +412,12 @@ export default function ChatPanelOptimized({
             transport: new DefaultChatTransport({
                 api: "/api/chat",
             }),
-            async onToolCall({ toolCall }) {
+            async onToolCall({toolCall}) {
                 if (toolCall.toolName === "display_diagram") {
-                    const { xml } = toolCall.input as { xml?: string };
+                    const {xml} = toolCall.input as { xml?: string };
                     try {
                         if (!xml || typeof xml !== "string" || !xml.trim()) {
                             throw new Error("大模型返回的 XML 为空，无法渲染。");
-                        }
-
-                        if (isSvgMode) {
-                            addToolResult({
-                                tool: "display_diagram",
-                                toolCallId: toolCall.toolCallId,
-                                output: "当前处于 SVG 模式，请使用 display_svg 工具返回 SVG。",
-                            });
-                            return;
                         }
 
                         let finalXml = xml;
@@ -442,7 +427,7 @@ export default function ChatPanelOptimized({
                         if (xml.trim().startsWith("<svg") || xml.trim().startsWith("<?xml")) {
                             try {
                                 // 尝试作为 SVG 处理
-                                const { rootXml } = buildSvgRootXml(xml);
+                                const {rootXml} = buildSvgRootXml(xml);
                                 finalXml = rootXml;
                                 isSvgContent = true;
                                 console.log("Detected SVG content in display_diagram, wrapped as DrawIO image.");
@@ -453,12 +438,21 @@ export default function ChatPanelOptimized({
                         }
 
                         // 立即渲染到画布
-                        // 最终完成时，我们进行一次 convertToLegalXml 清洗，确保数据合规
+                        // 在 SVG 模式下也强制走 draw.io 渲染，避免被 SVG 编辑器截流
                         const cleanXml = convertToLegalXml(finalXml);
-                        await handleCanvasUpdate(cleanXml, {
-                            origin: "display",
-                            modelRuntime: selectedModel ?? undefined,
-                        });
+                        if (isSvgMode) {
+                            handleRenderModeChange("drawio");
+                            setStreamingSvgContent(null);
+                            await handleDiagramXml(cleanXml, {
+                                origin: "display",
+                                modelRuntime: selectedModel ?? undefined,
+                            });
+                        } else {
+                            await handleCanvasUpdate(cleanXml, {
+                                origin: "display",
+                                modelRuntime: selectedModel ?? undefined,
+                            });
+                        }
 
                         // 同时保存到 diagramResultsRef 供后续使用
                         console.log("Saving diagram to gallery:", toolCall.toolCallId, cleanXml.slice(0, 50));
@@ -474,7 +468,7 @@ export default function ChatPanelOptimized({
                         // 延迟获取 SVG 快照用于画廊展示
                         setTimeout(async () => {
                             try {
-                                const { svg } = await fetchDiagramData({ saveHistory: false });
+                                const {svg} = await fetchDiagramData({saveHistory: false});
                                 const current = diagramResultsRef.current.get(toolCall.toolCallId);
                                 if (current) {
                                     diagramResultsRef.current.set(toolCall.toolCallId, {
@@ -515,7 +509,7 @@ export default function ChatPanelOptimized({
                         });
                     }
                 } else if (toolCall.toolName === "display_svg") {
-                    const { svg } = toolCall.input as { svg?: string };
+                    const {svg} = toolCall.input as { svg?: string };
                     try {
                         if (!svg || typeof svg !== "string" || !svg.trim()) {
                             throw new Error("大模型返回的 SVG 为空，无法渲染。");
@@ -542,7 +536,7 @@ export default function ChatPanelOptimized({
                             return;
                         }
 
-                        const { rootXml } = buildSvgRootXml(svg);
+                        const {rootXml} = buildSvgRootXml(svg);
 
                         await handleCanvasUpdate(rootXml, {
                             origin: "display",
@@ -584,13 +578,13 @@ export default function ChatPanelOptimized({
                         });
                     }
                 } else if (toolCall.toolName === "edit_diagram") {
-                    const { edits } = toolCall.input as {
+                    const {edits} = toolCall.input as {
                         edits: Array<{ search: string; replace: string }>;
                     };
 
                     let currentXml = "";
                     try {
-                        currentXml = await fetchAndFormatDiagram({ saveHistory: false });
+                        currentXml = await fetchAndFormatDiagram({saveHistory: false});
                         const editedXml = replaceXMLParts(currentXml, edits);
 
                         // replaceXMLParts 返回完整的 XML，直接应用到画布
@@ -734,7 +728,7 @@ export default function ChatPanelOptimized({
             const streamingFlag = selectedModel?.isStreaming ?? false;
 
             sendMessage(
-                { parts: lastUserMessage.parts || [] },
+                {parts: lastUserMessage.parts || []},
                 {
                     body: {
                         xml: chartXml,
@@ -748,6 +742,79 @@ export default function ChatPanelOptimized({
             console.error("重试生成失败：", error);
         }
     }, [status, stop, messages, setMessages, sendMessage, onFetchChart, selectedModel, renderMode]);
+
+    const handleSmartSvgConvert = useCallback(async (svgContent: string, modelKey: string) => {
+        setIsSmartSvgConverterOpen(false);
+        handleRenderModeChange("drawio");
+        if (modelKey !== selectedModelKey) {
+            selectModel(modelKey);
+        }
+
+        // Wait a bit for state updates to propagate
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const prompt = [
+            "Convert this SVG into a fully editable draw.io diagram.",
+            "Preserve 100% of layout, positions, sizes, colors, text, and connectors.",
+            "Do not drop elements, avoid placeholders, return a single-page draw.io XML ready for editing."
+        ].join(" ");
+
+        // Use the same logic as form submit but bypassing the event
+        try {
+            let chartXml = await onFetchChart();
+            const currentModel = modelOptions.find(m => m.key === modelKey) || selectedModel;
+
+            if (!currentModel) {
+                console.error("Model not found for conversion");
+                return;
+            }
+
+            const streamingFlag = currentModel.isStreaming ?? false;
+
+            const parts: Array<
+                | { type: "text"; text: string; displayText?: string }
+                | { type: "file"; url: string; mediaType: string }
+            > = [
+                {
+                    type: "text",
+                    text: `${prompt}\n\nSVG content:\n\`\`\`svg\n${svgContent}\n\`\`\``,
+                    displayText: "请将这份 SVG 转绘为 Draw.io 图表",
+                },
+            ];
+
+            sendMessage(
+                {parts},
+                {
+                    body: {
+                        xml: chartXml,
+                        modelRuntime: currentModel,
+                        enableStreaming: streamingFlag,
+                        renderMode: "drawio",
+                    },
+                }
+            );
+        } catch (error) {
+            console.error("Error initiating conversion:", error);
+        }
+    }, [handleRenderModeChange, selectedModelKey, selectModel, onFetchChart, modelOptions, selectedModel, sendMessage]);
+
+    const handleOpenSvgConvert = useCallback(() => {
+        const latest = getLatestCanvasMarkup();
+        setPrefillSvgForConvert(typeof latest === "string" ? latest : "");
+        setIsSmartSvgConverterOpen(true);
+    }, [getLatestCanvasMarkup]);
+
+    useEffect(() => {
+        const handleConvertEvent = () => handleOpenSvgConvert();
+        if (typeof window !== "undefined") {
+            window.addEventListener("flowpilot:convert-svg", handleConvertEvent);
+        }
+        return () => {
+            if (typeof window !== "undefined") {
+                window.removeEventListener("flowpilot:convert-svg", handleConvertEvent);
+            }
+        };
+    }, [handleOpenSvgConvert]);
 
     const handleCopyWechat = useCallback(async () => {
         try {
@@ -848,11 +915,11 @@ export default function ChatPanelOptimized({
                 const parts: Array<
                     | { type: "text"; text: string; displayText?: string }
                     | { type: "file"; url: string; mediaType: string }
-                > = [{ type: "text", text: enrichedInput, displayText: input }];
+                > = [{type: "text", text: enrichedInput, displayText: input}];
 
                 if (files.length > 0) {
                     const attachments = await serializeAttachments(files);
-                    attachments.forEach(({ url, mediaType }) => {
+                    attachments.forEach(({url, mediaType}) => {
                         parts.push({
                             type: "file",
                             url,
@@ -862,7 +929,7 @@ export default function ChatPanelOptimized({
                 }
 
                 sendMessage(
-                    { parts },
+                    {parts},
                     {
                         body: {
                             xml: chartXml,
@@ -924,16 +991,6 @@ export default function ChatPanelOptimized({
         }
     };
 
-    const handleShowcasePreset = (preset: FlowShowcasePreset) => {
-        if (status === "streaming") return;
-        if (!ensureBranchSelectionSettled()) return;
-        setBriefState(preset.brief);
-        setInput(preset.prompt);
-        if (files.length > 0) {
-            handleFileChange([]);
-        }
-    };
-
     const handleBranchSwitch = useCallback(
         async (branchId: string) => {
             if (branchId === activeBranchId) {
@@ -977,13 +1034,6 @@ export default function ChatPanelOptimized({
     const exchanges = messages.filter(
         (message) => message.role === "user" || message.role === "assistant"
     ).length;
-
-    const handleOpenBriefPanel = useCallback(() => {
-        if (status === "streaming") {
-            return;
-        }
-        setIsBriefDialogOpen(true);
-    }, [status]);
 
     // 对话历史处理函数
     const handleShowConversationHistory = useCallback(() => {
@@ -1061,6 +1111,10 @@ export default function ChatPanelOptimized({
     }, [handleStopAll, setMessages, resetActiveBranch, isSvgMode, loadSvgMarkup, clearSvg, handleDiagramXml, clearDiagram, clearConversation, updateActiveBranchMessages, updateActiveBranchDiagram]);
 
     const toggleToolPanel = (panel: ToolPanel) => {
+        if (panel === 'converter') {
+            setIsSmartSvgConverterOpen(true);
+            return;
+        }
         setActiveToolPanel((current) => {
             const next = current === panel ? null : panel;
             setIsToolSidebarOpen(next !== null);
@@ -1122,7 +1176,7 @@ export default function ChatPanelOptimized({
     ]);
 
     const handleMessageRevert = useCallback(
-        ({ messageId, text }: { messageId: string; text: string }) => {
+        ({messageId, text}: { messageId: string; text: string }) => {
             const targetIndex = messages.findIndex(
                 (message) => message.id === messageId
             );
@@ -1174,7 +1228,7 @@ export default function ChatPanelOptimized({
                 <FlowPilotBriefLauncher
                     state={briefState}
                     onChange={(next) =>
-                        setBriefState((prev) => ({ ...prev, ...next }))
+                        setBriefState((prev) => ({...prev, ...next}))
                     }
                     disabled={status === "streaming"}
                     badges={briefContext.badges}
@@ -1190,7 +1244,8 @@ export default function ChatPanelOptimized({
         return (
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <div className="inline-flex min-w-[280px] items-center rounded-full bg-slate-100 p-1 overflow-x-auto scrollbar-hide">
+                    <div
+                        className="inline-flex items-center rounded-full bg-slate-100 p-1 overflow-x-auto scrollbar-hide">
                         <button
                             type="button"
                             onClick={() => setCommandTab("templates")}
@@ -1226,18 +1281,6 @@ export default function ChatPanelOptimized({
                             )}
                         >
                             述职模板
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCommandTab("showcase")}
-                            className={cn(
-                                "rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition",
-                                commandTab === "showcase"
-                                    ? "bg-white text-slate-900 shadow"
-                                    : "text-slate-500"
-                            )}
-                        >
-                            样板间
                         </button>
                     </div>
                 </div>
@@ -1277,13 +1320,7 @@ export default function ChatPanelOptimized({
                             handleBlueprintTemplate(template.prompt)
                         }
                     />
-                ) : (
-                    <FlowShowcaseGallery
-                        presets={FLOW_SHOWCASE_PRESETS}
-                        disabled={status === "streaming" || requiresBranchDecision}
-                        onSelect={handleShowcasePreset}
-                    />
-                )}
+                ) : null}
             </div>
         );
     };
@@ -1296,78 +1333,113 @@ export default function ChatPanelOptimized({
     return (
         <>
             <Card className="relative flex h-full max-h-full min-h-0 flex-col gap-0 rounded-none py-0 overflow-hidden">
-                <CardHeader className="flex shrink-0 flex-col gap-1.5 border-b border-slate-100 px-3 py-1.5">
-                    <div className="flex w-full items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                            <div className="flex items-center gap-1 rounded-full bg-slate-100 p-0.5">
-                                <a
-                                    href="/"
-                                    className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 shadow-sm"
-                                >
-                                    画图工作室
-                                </a>
-                                <a
-                                    href="/ppt"
-                                    className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-900"
-                                >
-                                    PPT 工作室
-                                    <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-600">
-                                        实验功能
-                                    </span>
-                                </a>
-                            </div>
+                <CardHeader className="flex shrink-0 flex-col gap-1 border-b border-slate-100/50 px-3 py-1.5">
+                    <div
+                        className="flex w-full flex-wrap items-center justify-between gap-2 rounded-2xl backdrop-blur-xl bg-white/60 border border-white/40 px-2.5 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.4)]">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {TOOLBAR_PANELS.map((panel) => {
+                                const {label, icon: Icon} = TOOLBAR_ACTIONS[panel];
+                                const isActive = activeToolPanel === panel && isToolSidebarOpen;
+                                return (
+                                    <button
+                                        key={panel}
+                                        type="button"
+                                        onClick={() => toggleToolPanel(panel)}
+                                        className={cn(
+                                            "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium transition-all duration-200",
+                                            isActive
+                                                ? "bg-slate-900 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25),0_1px_2px_rgba(0,0,0,0.15)] scale-[1.02]"
+                                                : "text-slate-700 hover:bg-white/40 active:scale-95"
+                                        )}
+                                        title={label}
+                                    >
+                                        <Icon className="h-3.5 w-3.5"/>
+                                        <span className="leading-none">{label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            {/* 对话历史按钮 */}
-                            <button
-                                type="button"
-                                onClick={handleShowConversationHistory}
-                                disabled={status === "streaming"}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white disabled:opacity-50"
-                                aria-label="查看对话历史"
-                                title="对话历史"
-                            >
-                                <History className="h-4 w-4" />
-                            </button>
-                            <a
-                                href="https://github.com/cos43/flowpilot"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white"
-                                aria-label="在 GitHub 查看源码"
-                            >
-                                <FaGithub className="h-4 w-4" />
-                            </a>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setContactCopyState("idle");
-                                    setIsContactDialogOpen(true);
-                                }}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-violet-200 bg-white/80 text-violet-600 shadow-sm transition hover:border-violet-300 hover:bg-white"
-                                aria-label="交流联系"
-                                title="交流联系"
-                            >
-                                <Handshake className="h-4 w-4" />
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="inline-flex h-8 items-center gap-1 rounded-full px-3 text-[12px] font-medium text-slate-700 transition-all duration-200 hover:bg-white/40 active:scale-95"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4"/>
+                                        <span className="hidden sm:inline">更多</span>
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                    <DropdownMenuLabel>工具</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => toggleToolPanel("brief")}>
+                                        <Sparkles className="mr-2 h-4 w-4"/>
+                                        配置（Brief）
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => toggleToolPanel("actions")}>
+                                        <MessageSquare className="mr-2 h-4 w-4"/>
+                                        模板
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleOpenSvgConvert}>
+                                        <Sparkles className="mr-2 h-4 w-4"/>
+                                        转绘为 draw.io
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator/>
+                                    <DropdownMenuLabel>记录</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={handleShowConversationHistory}>
+                                        <History className="mr-2 h-4 w-4"/>
+                                        对话历史
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleShowDiagramGallery}>
+                                        <LayoutGrid className="mr-2 h-4 w-4"/>
+                                        图表画廊
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setIsComparisonConfigOpen(true)}>
+                                        <Settings className="mr-2 h-4 w-4"/>
+                                        对比配置
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator/>
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            setContactCopyState("idle");
+                                            setIsContactDialogOpen(true);
+                                        }}
+                                    >
+                                        <Handshake className="mr-2 h-4 w-4"/>
+                                        交流联系
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <a
+                                            href="https://github.com/cos43/flowpilot"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center"
+                                        >
+                                            <FaGithub className="mr-2 h-4 w-4"/>
+                                            GitHub
+                                        </a>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             {isCollapsible && (
                                 <button
                                     type="button"
                                     onClick={onCollapse}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-50"
                                     aria-label="收起聊天"
+                                    title="收起聊天"
                                 >
-                                    <PanelRightClose className="h-4 w-4" />
+                                    <PanelRightClose className="h-4 w-4"/>
                                 </button>
                             )}
                         </div>
                     </div>
-
                 </CardHeader>
                 <CardContent className="flex flex-1 min-h-0 flex-col overflow-hidden">
                     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
                         {!selectedModel && (
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-2 text-sm text-amber-900">
+                            <div
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-2 text-sm text-amber-900">
                                 <div>
                                     FlowPilot 需要至少配置一个模型接口才能开始生成，请先填写 Base URL、API Key 与模型 ID。
                                 </div>
@@ -1381,11 +1453,6 @@ export default function ChatPanelOptimized({
                                 </Button>
                             </div>
                         )}
-                        <IntelligenceToolbar
-                            activePanel={activeToolPanel}
-                            isSidebarOpen={isToolSidebarOpen}
-                            onToggle={toggleToolPanel}
-                        />
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
                             {comparisonNotice && (
                                 <div
@@ -1397,9 +1464,9 @@ export default function ChatPanelOptimized({
                                     )}
                                 >
                                     {comparisonNotice.type === "success" ? (
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        <CheckCircle2 className="h-3.5 w-3.5"/>
                                     ) : (
-                                        <AlertCircle className="h-3.5 w-3.5" />
+                                        <AlertCircle className="h-3.5 w-3.5"/>
                                     )}
                                     <span className="leading-snug">
                                         {comparisonNotice.message}
@@ -1408,7 +1475,7 @@ export default function ChatPanelOptimized({
                             )}
                             <div
                                 className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl  bg-white px-2.5 py-2 pb-28"
-                                style={{ maxHeight: '100%' }}
+                                style={{maxHeight: '100%'}}
                             >
                                 <ChatMessageDisplay
                                     messages={messages}
@@ -1416,10 +1483,10 @@ export default function ChatPanelOptimized({
                                     setInput={setInput}
                                     setFiles={handleFileChange}
                                     activeBranchId={activeBranchId}
-                                    onDisplayDiagram={(xml, { isFinal } = {}) => {
+                                    onDisplayDiagram={(xml, {isFinal} = {}) => {
                                         if (isSvgMode) {
                                             const fixed = repairSvg(xml);
-                                            
+
                                             // 如果是流式更新，使用轻量级的预览层
                                             if (isFinal === false) {
                                                 setStreamingSvgContent(fixed);
@@ -1428,7 +1495,11 @@ export default function ChatPanelOptimized({
 
                                             // 只有在最终完成时，才清除预览层并加载到编辑器状态
                                             setStreamingSvgContent(null);
-                                            loadSvgMarkup(fixed, { skipSnapshot: true, saveHistory: false, skipOptimization: true });
+                                            loadSvgMarkup(fixed, {
+                                                skipSnapshot: true,
+                                                saveHistory: false,
+                                                skipOptimization: true
+                                            });
                                             updateActiveBranchDiagram(fixed);
                                             return;
                                         }
@@ -1450,11 +1521,6 @@ export default function ChatPanelOptimized({
                                     comparisonHistory={comparisonHistory}
                                     activePreview={activeComparisonPreview}
                                     onMessageRevert={handleMessageRevert}
-                                    onOpenBriefPanel={
-                                        status === "streaming" ? undefined : handleOpenBriefPanel
-                                    }
-                                    briefBadges={briefDisplayBadges}
-                                    briefSummary={briefSummary}
                                     runtimeDiagramError={runtimeError?.message ?? null}
                                     onConsumeRuntimeError={() => setRuntimeError(null)}
                                     onStopAll={() =>
@@ -1482,14 +1548,15 @@ export default function ChatPanelOptimized({
                 </CardContent>
 
                 <div className="absolute bottom-3 left-0 right-0 z-10 w-full px-3">
-                    <div className="flex w-full flex-col items-center gap-1.5">
-                        {/* Brief 快速控制 - 居中显示，紧凑设计 */}
-                        <BriefQuickControl
-                            mode={briefState.mode ?? "guided"}
-                            onModeChange={(mode) => setBriefState({ ...briefState, mode })}
-                            onOpenSettings={() => setIsBriefDialogOpen(true)}
-                            disabled={status === "streaming"}
-                        />
+                    <div className="flex w-full flex-col items-center gap-2">
+                        <div
+                            className="flex items-center justify-center gap-2">
+                            <RenderModeToggle
+                                value={renderMode}
+                                onChange={handleRenderModeChange}
+                                disabled={status === "streaming"}
+                            />
+                        </div>
 
                         <div className="w-full rounded-2xl shadow-xl">
                             <ChatInputOptimized
@@ -1523,11 +1590,11 @@ export default function ChatPanelOptimized({
                                     const parts: Array<
                                         | { type: "text"; text: string; displayText?: string }
                                         | { type: "file"; url: string; mediaType: string }
-                                    > = [{ type: "text", text: enrichedInput, displayText: input }];
+                                    > = [{type: "text", text: enrichedInput, displayText: input}];
 
                                     if (files.length > 0) {
                                         const attachments = await serializeAttachments(files);
-                                        attachments.forEach(({ url, mediaType }) => {
+                                        attachments.forEach(({url, mediaType}) => {
                                             parts.push({
                                                 type: "file",
                                                 url,
@@ -1571,12 +1638,13 @@ export default function ChatPanelOptimized({
                                 }
                                 isBusy={isGenerationBusy}
                                 onShowDiagramGallery={handleShowDiagramGallery}
+                                onConvertSvg={handleOpenSvgConvert}
                             />
                         </div>
                     </div>
                 </div>
 
-            </Card >
+            </Card>
             <DiagramGalleryDialog
                 open={isDiagramGalleryOpen}
                 onOpenChange={setIsDiagramGalleryOpen}
@@ -1617,7 +1685,8 @@ export default function ChatPanelOptimized({
                             欢迎通过微信联系我。
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-slate-50 p-4 shadow-inner">
+                    <div
+                        className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-slate-50 p-4 shadow-inner">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-violet-500">
                             微信号
                         </div>
@@ -1637,12 +1706,12 @@ export default function ChatPanelOptimized({
                             >
                                 {contactCopyState === "copied" ? (
                                     <>
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        <CheckCircle2 className="h-3.5 w-3.5"/>
                                         已复制
                                     </>
                                 ) : (
                                     <>
-                                        <Copy className="h-3.5 w-3.5" />
+                                        <Copy className="h-3.5 w-3.5"/>
                                         复制
                                     </>
                                 )}
@@ -1690,6 +1759,15 @@ export default function ChatPanelOptimized({
                 onClearAll={clearAllConversations}
                 onStartNew={handleStartNewConversation}
                 onLoadConversation={handleLoadConversation}
+            />
+            <SmartSvgConverterDialog
+                open={isSmartSvgConverterOpen}
+                onOpenChange={setIsSmartSvgConverterOpen}
+                onConvert={handleSmartSvgConvert}
+                models={modelOptions}
+                selectedModelKey={selectedModelKey}
+                onModelChange={selectModel}
+                initialSvg={prefillSvgForConvert}
             />
         </>
     );

@@ -43,9 +43,6 @@ interface ChatMessageDisplayProps {
     activePreview?: { requestId: string; resultId: string } | null;
     onMessageRevert?: (payload: { messageId: string; text: string }) => void;
     activeBranchId?: string;
-    onOpenBriefPanel?: () => void;
-    briefBadges?: string[];
-    briefSummary?: string;
     runtimeDiagramError?: string | null;
     onConsumeRuntimeError?: () => void;
     onStopAll?: () => void;
@@ -292,23 +289,11 @@ const DiagramToolCard = memo(({
                             查看 SVG 预览
                         </summary>
                         <div className="mt-2 rounded-lg border border-slate-100 bg-white/90 p-2">
-                            <div className="relative h-48 w-full overflow-hidden rounded-lg bg-slate-50">
-                                {svgToDataUrl(displaySvg) ? (
-                                    <Image
-                                        src={svgToDataUrl(displaySvg)!}
-                                        alt={`svg-preview-${callId}`}
-                                        fill
-                                        className="object-contain"
-                                        sizes="(max-width: 768px) 100vw, 320px"
-                                        unoptimized
-                                    />
-                                ) : null}
-                                {!svgToDataUrl(displaySvg) && (
-                                    <div
-                                        className="absolute inset-0 overflow-auto p-2 text-xs text-slate-700"
-                                        dangerouslySetInnerHTML={{ __html: displaySvg }}
-                                    />
-                                )}
+                            <div className="relative h-48 w-full overflow-auto rounded-lg bg-slate-50 flex items-center justify-center">
+                                <div
+                                    className="max-h-full max-w-full"
+                                    dangerouslySetInnerHTML={{ __html: displaySvg }}
+                                />
                             </div>
                         </div>
                     </details>
@@ -415,9 +400,6 @@ export function ChatMessageDisplay({
     activePreview = null,
     onMessageRevert,
     activeBranchId,
-    onOpenBriefPanel,
-    briefBadges,
-    briefSummary,
     runtimeDiagramError,
     onConsumeRuntimeError,
     onStopAll: onStopAllProp, // Renamed to avoid potential conflict
@@ -882,13 +864,13 @@ export function ChatMessageDisplay({
                                         buildComparisonPreviewUrl
                                         ? buildComparisonPreviewUrl(rawXmlForPreview)
                                         : null;
-                                const previewSvgSrc = svgToDataUrl(result.previewSvg);
+                                const previewSvg = result.previewSvg?.trim();
                                 const previewImageSrc = result.previewImage?.trim()?.length
                                     ? result.previewImage
                                     : null;
                                 const hasPreview =
                                     result.status === "ok" &&
-                                    (Boolean(previewSvgSrc) ||
+                                    (Boolean(previewSvg) ||
                                         Boolean(previewImageSrc) ||
                                         Boolean(previewUrl));
                                 const isActive =
@@ -914,10 +896,10 @@ export function ChatMessageDisplay({
                                                         : "bg-red-50/50 border-red-200/40",
                                             isActive && "ring-1 ring-blue-400"
                                         )}
-                                        style={{ width: '360px', height: '260px' }}
+                                        style={{ width: '260px', height: '200px' }}
                                     >
                                         {/* 预览图区域 */}
-                                        <div className="relative bg-slate-50/30" style={{ height: '220px' }}>
+                                        <div className="relative bg-slate-50/30" style={{ height: '150px' }}>
                                             <div
                                                 role={result.status === "ok" ? "button" : undefined}
                                                 tabIndex={result.status === "ok" ? 0 : -1}
@@ -933,28 +915,22 @@ export function ChatMessageDisplay({
                                                 {result.status === "ok" ? (
                                                     hasPreview ? (
                                                         <>
-                                                            {previewSvgSrc ? (
-                                                                <div className="relative h-full w-full">
-                                                                    <Image
-                                                                        src={previewSvgSrc}
-                                                                        alt={`comparison-preview-svg-${cardKey}`}
-                                                                        fill
-                                                                        className="object-contain"
-                                                                        sizes="(max-width: 768px) 100vw, 360px"
-                                                                        unoptimized
-                                                                    />
-                                                                </div>
+                                                            {previewSvg ? (
+                                                                <div 
+                                                                    className="h-full w-full flex items-center justify-center"
+                                                                    dangerouslySetInnerHTML={{ __html: previewSvg }}
+                                                                />
                                                             ) : previewImageSrc ? (
-                                                                <div className="relative h-full w-full">
-                                                                    <Image
-                                                                        src={previewImageSrc}
-                                                                        alt={`comparison-preview-${cardKey}`}
-                                                                        fill
-                                                                        className="object-contain"
-                                                                        sizes="(max-width: 768px) 100vw, 360px"
-                                                                        unoptimized
-                                                                    />
-                                                                </div>
+                                                                    <div className="relative h-full w-full">
+                                                                        <Image
+                                                                            src={previewImageSrc}
+                                                                            alt={`comparison-preview-${cardKey}`}
+                                                                            fill
+                                                                            className="object-contain"
+                                                                            sizes="200px"
+                                                                            unoptimized
+                                                                        />
+                                                                    </div>
                                                             ) : previewUrl ? (
                                                                 <iframe
                                                                     src={previewUrl}
@@ -1231,31 +1207,15 @@ export function ChatMessageDisplay({
     
 
         return (
-
             <div className="pr-4">
-
                 {showExamplePanel ? (
-
                     <div className="py-2">
-
                         <ExamplePanel
-
                             setInput={setInput}
-
                             setFiles={setFiles}
-
-                            onOpenBriefPanel={onOpenBriefPanel}
-
-                            briefBadges={briefBadges}
-
-                            briefSummary={briefSummary}
-
                         />
-
                     </div>
-
                 ) : (
-
                     <>
 
                         {leadingComparisons.map((entry, index) => (
@@ -1292,7 +1252,36 @@ export function ChatMessageDisplay({
 
                             );
 
-                            const displayableContentParts = contentParts.filter((part: any) => {
+                            const augmentedContentParts = contentParts.flatMap((part: any) => {
+
+                                if (part.type === "text") {
+
+                                    const rawText = part.text ?? "";
+                                    const codeBlockMatch = rawText.match(/```svg\\n([\\s\\S]*?)```/i);
+                                    const inlineMatch = rawText.includes("<svg")
+                                        ? rawText
+                                        : null;
+                                    const svgPayload = codeBlockMatch?.[1] || inlineMatch;
+                                    const dataUrl = svgPayload ? svgToDataUrl(svgPayload) : null;
+                                    const base = {
+                                        ...part,
+                                        displayText:
+                                            part.displayText ??
+                                            (rawText.trim().length > 0 ? rawText : "SVG 转绘请求"),
+                                    };
+                                    if (dataUrl) {
+                                        return [
+                                            base,
+                                            { type: "file", url: dataUrl, mediaType: "image/svg+xml" },
+                                        ];
+                                    }
+                                }
+
+                                return [part];
+
+                            });
+
+                            const displayableContentParts = augmentedContentParts.filter((part: any) => {
 
                                 if (part.type === "text") {
 
@@ -1308,7 +1297,7 @@ export function ChatMessageDisplay({
 
                             const fallbackText =
 
-                                contentParts.length === 0 ? resolveMessageText(message) : "";
+                                augmentedContentParts.length === 0 ? resolveMessageText(message) : "";
 
                             const hasBubbleContent =
 
@@ -1425,17 +1414,17 @@ export function ChatMessageDisplay({
 
                 return (
                     <div className="flex justify-start mb-5">
-                        <div className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm border border-slate-200">
+                        <div className="inline-flex items-center gap-3 rounded-2xl backdrop-blur-xl bg-white/60 border border-white/40 px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.4)]">
                             <div className="flex space-x-1">
-                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <div className="h-2 w-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="h-2 w-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="h-2 w-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-sm text-slate-600 font-medium">
+                                <span className="text-sm text-slate-700 font-medium">
                                     正在绘制中...
                                 </span>
-                                <span className="text-xs text-slate-400 font-mono">
+                                <span className="text-xs text-slate-500 font-mono">
                                     {elapsedDisplay}
                                 </span>
                             </div>

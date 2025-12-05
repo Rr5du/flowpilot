@@ -9,7 +9,7 @@ import { MessageSquare, Minimize2 } from "lucide-react";
 import { useDrawioDiagnostics } from "@/hooks/use-drawio-diagnostics";
 import { WorkspaceNav } from "@/components/workspace-nav";
 import type { DiagramRenderingMode } from "@/features/chat-panel/types";
-import { SvgStudio } from "@/components/svg-studio";
+import { SvgPreviewPane } from "@/components/svg-preview-pane";
 
 export default function Home() {
     const { drawioRef, handleDiagramExport, setRuntimeError } = useDiagram();
@@ -20,7 +20,7 @@ export default function Home() {
     const [isChatVisible, setIsChatVisible] = useState(true);
     const [chatWidthPercent, setChatWidthPercent] = useState(34);
     const [isResizingChat, setIsResizingChat] = useState(false);
-    const [renderMode, setRenderMode] = useState<DiagramRenderingMode>("drawio");
+    const [renderMode, setRenderMode] = useState<DiagramRenderingMode>("svg");
     const resizeRafRef = React.useRef<number | null>(null);
     const pendingChatPercentRef = React.useRef(chatWidthPercent);
 
@@ -277,9 +277,7 @@ export default function Home() {
                                 </>
                             )
                         ) : (
-                            <div className="flex h-full w-full rounded-xl border border-slate-200 bg-white/90">
-                                <SvgStudio />
-                            </div>
+                            <SvgPreviewPane />
                         )}
                     </div>
                     {/* 分隔器 - 始终渲染但只在可见时显示 */}

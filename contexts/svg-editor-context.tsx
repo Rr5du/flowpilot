@@ -6,6 +6,7 @@ import React, {
     useContext,
     useMemo,
     useState,
+    useEffect,
 } from "react";
 import { nanoid } from "nanoid";
 import { svgToDataUrl } from "@/lib/svg";
@@ -217,6 +218,8 @@ type SvgEditorContextValue = {
     addImportRecord: (record: Omit<ImportRecord, "id">) => void;
     streamingSvgContent: string | null;
     setStreamingSvgContent: (content: string | null) => void;
+    previewSvgMarkup: string | null;
+    rawSvgMarkup: string | null;
 };
 
 const DEFAULT_DOC: SvgDocument = {
@@ -793,6 +796,13 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
     const [symbolLibrary, setSymbolLibrary] = useState<Map<string, SvgElement>>(new Map());
     const [importHistory, setImportHistory] = useState<ImportRecord[]>([]);
     const [streamingSvgContent, setStreamingSvgContent] = useState<string | null>(null);
+    const [previewSvgMarkup, setPreviewSvgMarkup] = useState<string | null>(null);
+    const [rawSvgMarkup, setRawSvgMarkup] = useState<string | null>(null);
+    const [hasLocalChanges, setHasLocalChanges] = useState(false);
+
+    const markLocalChange = useCallback(() => {
+        setHasLocalChanges(true);
+    }, []);
 
     const takeSnapshot = useCallback(
         (
@@ -832,8 +842,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                 }
                 return next;
             });
+            markLocalChange();
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const addHistory = useCallback(
@@ -861,6 +872,17 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${doc.width}" height="${doc.height}" viewBox="${viewBox}">${defsContent}${body}</svg>`;
     }, [doc, elements, defsMarkup]);
 
+    // Keep the preview pane rendering the most accurate SVG we have.
+    useEffect(() => {
+        if (streamingSvgContent) return;
+        if (hasLocalChanges) {
+            const latest = exportSvgMarkup();
+            setPreviewSvgMarkup(latest);
+            setRawSvgMarkup(latest);
+            setHasLocalChanges(false);
+        }
+    }, [exportSvgMarkup, hasLocalChanges, streamingSvgContent]);
+
     const addElement = useCallback(
         (element: Omit<SvgElement, "id"> | SvgElement) => {
             pushHistorySnapshot();
@@ -872,9 +894,10 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             if (next.locked === undefined) next.locked = false;
             setElements((prev) => [...prev, next]);
             setSelectedId(next.id);
+            markLocalChange();
             return next.id;
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const updateElement = useCallback(
@@ -947,8 +970,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                 return updated;
             }
             );
+            markLocalChange();
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const moveElement = useCallback(
@@ -1008,8 +1032,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                     return element;
                 })
             );
+            markLocalChange();
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const removeElement = useCallback(
@@ -1017,8 +1042,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             pushHistorySnapshot();
             setElements((prev) => prev.filter((item) => item.id !== id));
             setSelectedId((prev) => (prev === id ? null : prev));
+            markLocalChange();
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const duplicateElement = useCallback(
@@ -1081,9 +1107,10 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             }
             setElements((prev) => [...prev, clone]);
             setSelectedId(clone.id);
+            markLocalChange();
             return clone.id;
         },
-        [elements, pushHistorySnapshot]
+        [elements, pushHistorySnapshot, markLocalChange]
     );
 
     const duplicateMany = useCallback(
@@ -1157,9 +1184,10 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             });
             setSelectedId(created.length === 1 ? created[0] : null);
             setSelectedIds(new Set(created));
+            markLocalChange();
             return created;
         },
-        [elements, pushHistorySnapshot]
+        [elements, pushHistorySnapshot, markLocalChange]
     );
 
     const removeMany = useCallback(
@@ -1170,8 +1198,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             setElements((prev) => prev.filter((item) => !idList.includes(item.id)));
             setSelectedId(null);
             setSelectedIds(new Set());
+            markLocalChange();
         },
-        [pushHistorySnapshot]
+        [pushHistorySnapshot, markLocalChange]
     );
 
     const summarizeSvgStats = (elements: SvgElement[]) => {
@@ -1207,10 +1236,14 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                     console.warn("忽略非 SVG 内容载入：", content.slice(0, 120));
                     return;
                 }
-                const parsed = parseSvgMarkup(svg, options?.skipOptimization);
+                const normalized = decodeSvgContent(content);
+                const parsed = parseSvgMarkup(normalized, options?.skipOptimization);
                 if (!parsed.valid) {
                     return;
                 }
+                setRawSvgMarkup(content);
+                setPreviewSvgMarkup(normalized);
+                setHasLocalChanges(false);
                 setDoc(parsed.doc);
                 setElements(parsed.elements);
                 setDefsMarkup(parsed.defs ?? null);
@@ -1227,7 +1260,7 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
                     addImportRecord({
                         name: options.recordMeta.name ?? "SVG 导入",
                         type: options.recordMeta.type ?? "upload",
-                        content: svg,
+                        content: normalized,
                         timestamp: Date.now(),
                         stats: {
                             width: parsed.doc.width,
@@ -1254,6 +1287,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
         setActiveHistoryIndex(-1);
         setPast([]);
         setFuture([]);
+        setPreviewSvgMarkup(null);
+        setRawSvgMarkup(null);
+        setHasLocalChanges(false);
     }, [pushHistorySnapshot]);
 
     const restoreHistoryAt = useCallback((index: number) => {
@@ -1271,6 +1307,9 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             );
             setSelectedId(null);
             setActiveHistoryIndex(index);
+            setPreviewSvgMarkup(entry.svg);
+            setRawSvgMarkup(entry.svg);
+            setHasLocalChanges(false);
         } catch (error) {
             console.error("恢复历史失败：", error);
         }
@@ -1284,9 +1323,10 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             setDoc(last.doc);
             setElements(last.elements);
             setSelectedId(null);
+            markLocalChange();
             return prev.slice(0, -1);
         });
-    }, [takeSnapshot]);
+    }, [takeSnapshot, markLocalChange]);
 
     const redo = useCallback(() => {
         setFuture((prev) => {
@@ -1298,7 +1338,7 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             setSelectedId(null);
             return prev.slice(1);
         });
-    }, [takeSnapshot]);
+    }, [takeSnapshot, markLocalChange]);
 
     const registerSymbol = useCallback((id: string, element: SvgElement) => {
         setSymbolLibrary((prev) => {
@@ -1348,6 +1388,8 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             addImportRecord,
             streamingSvgContent,
             setStreamingSvgContent,
+            previewSvgMarkup,
+            rawSvgMarkup,
         }),
         [
             doc,
@@ -1379,6 +1421,8 @@ export function SvgEditorProvider({ children }: { children: React.ReactNode }) {
             importHistory,
             addImportRecord,
             streamingSvgContent,
+            previewSvgMarkup,
+            rawSvgMarkup,
         ]
     );
 

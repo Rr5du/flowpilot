@@ -1,4 +1,4 @@
-import { FileText, Settings } from "lucide-react";
+import { FileText, Settings, Zap } from "lucide-react";
 
 import type { QuickActionDefinition } from "@/components/quick-action-bar";
 import type { FlowPilotBriefState } from "@/components/flowpilot-brief";
@@ -17,9 +17,14 @@ export const TOOLBAR_ACTIONS: Record<ToolPanel, ToolbarActionDefinition> = {
         icon: FileText,
         description: "",
     },
+    converter: {
+        label: "转绘",
+        icon: Zap,
+        description: "SVG 转 Draw.io",
+    },
 };
 
-export const TOOLBAR_PANELS: ToolPanel[] = ["brief", "actions"];
+export const TOOLBAR_PANELS: ToolPanel[] = ["brief", "actions", "converter"];
 
 export const QUICK_ACTIONS: QuickActionDefinition[] = [
     {

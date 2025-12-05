@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Presentation, Workflow } from "lucide-react";
+import { Sparkles, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLocale } from "@/contexts/locale-context";
@@ -15,21 +15,20 @@ export function WorkspaceNav({ className }: WorkspaceNavProps) {
     const pathname = usePathname();
     const { t } = useLocale();
 
-    const WORKSPACES = [
+    const WORKSPACES: Array<{
+        id: string;
+        href: string;
+        label: string;
+        description: string;
+        icon: typeof Workflow;
+        badge?: string;
+    }> = [
         {
             id: "diagram",
             href: "/",
             label: t("nav.workspace"),
             description: "FlowPilot Studio",
             icon: Workflow,
-        },
-        {
-            id: "ppt",
-            href: "/ppt",
-            label: t("nav.pptStudio"),
-            description: "AI 幻灯片实验室",
-            icon: Presentation,
-            badge: t("common.experimental") || "实验功能",
         },
     ];
 

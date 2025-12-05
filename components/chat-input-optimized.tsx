@@ -12,6 +12,7 @@ import {
     Settings,
     Square,
     LayoutGrid,
+    Sparkles,
 } from "lucide-react";
 import { ButtonWithTooltip } from "@/components/button-with-tooltip";
 import { FilePreviewList } from "@/components/file-preview-list";
@@ -20,6 +21,7 @@ import { ModelSelector } from "@/components/model-selector";
 import { cn } from "@/lib/utils";
 import type { RuntimeModelOption } from "@/types/model-config";
 import { RenderModeToggle } from "@/components/render-mode-toggle";
+import { ComparisonQuickAccess } from "@/components/comparison-quick-access";
 
 interface ChatInputOptimizedProps {
     input: string;
@@ -51,6 +53,7 @@ interface ChatInputOptimizedProps {
     onRestoreHistory?: (index: number) => void;
     // 图表画廊相关
     onShowDiagramGallery?: () => void;
+    onConvertSvg?: () => void;
 }
 
 export function ChatInputOptimized({
@@ -82,6 +85,7 @@ export function ChatInputOptimized({
     onRestoreHistory,
     // 图表画廊参数
     onShowDiagramGallery,
+    onConvertSvg,
 }: ChatInputOptimizedProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -261,20 +265,20 @@ export function ChatInputOptimized({
         >
             <div
                 className={cn(
-                    "relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm transition-all",
-                    isDragging && "ring-2 ring-slate-300"
+                    "relative overflow-hidden rounded-2xl backdrop-blur-xl bg-white/60 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.4)] transition-all",
+                    isDragging && "ring-2 ring-slate-400/50"
                 )}
             >
                 {files.length > 0 && (
-                    <div className="flex flex-col gap-1 border-b border-slate-200/80 px-3 py-2">
+                    <div className="flex flex-col gap-1 border-b border-white/30 px-3 py-2">
                         <div className="flex items-center justify-between text-[11px] font-medium text-slate-500">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white shadow-sm">
                                 {files.length} 个附件
                             </span>
                             <button
                                 type="button"
                                 onClick={handleRemoveAllFiles}
-                                className="rounded-full px-2 py-0.5 text-[11px] text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                className="rounded-full px-2 py-0.5 text-[11px] text-slate-500 transition-all hover:bg-white/40 hover:text-slate-700"
                             >
                                 移除全部
                             </button>
@@ -287,7 +291,7 @@ export function ChatInputOptimized({
                     </div>
                 )}
 
-                <div className="px-3 py-2">
+                <div className="px-3 py-1.5">
                     <Textarea
                         ref={textareaRef}
                         value={input}
@@ -303,14 +307,14 @@ export function ChatInputOptimized({
 
                 <div
                     ref={controlBarRef}
-                    className="flex flex-nowrap items-center justify-between gap-2 px-3 pt-1 pb-1.5 overflow-x-auto scrollbar-hide"
+                    className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1"
                 >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                         <ButtonWithTooltip
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-[30px] w-[30px] rounded-full"
+                            className="h-[28px] w-[28px] rounded-full text-slate-600 hover:bg-white/40 transition-all active:scale-95"
                             onClick={() => setShowClearDialog(true)}
                             tooltipContent="清空当前对话与图表"
                             disabled={status === "streaming"}
@@ -318,29 +322,22 @@ export function ChatInputOptimized({
                             <RotateCcw className="h-4 w-4" />
                         </ButtonWithTooltip>
 
-                        {/* 图表画廊按钮 */}
-                        {onShowDiagramGallery && (
-                            <ButtonWithTooltip
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-[30px] w-[30px] rounded-full"
-                                onClick={onShowDiagramGallery}
-                                disabled={status === "streaming" || interactionLocked}
-                                tooltipContent="查看本次对话的所有图表"
-                            >
-                                <LayoutGrid className="h-4 w-4" />
-                            </ButtonWithTooltip>
+                        {comparisonEnabled && (
+                            <ComparisonQuickAccess
+                                disabled={
+                                    status === "streaming" ||
+                                    (!input.trim() && !isCompareLoading) ||
+                                    interactionLocked
+                                }
+                                isCompareLoading={isCompareLoading}
+                                onCompareRequest={onCompareRequest}
+                                onOpenComparisonConfig={onOpenComparisonConfig}
+                                compact={false}
+                            />
                         )}
                     </div>
 
-                    <div className="flex flex-nowrap items-center gap-2">
-                        <RenderModeToggle
-                            value={renderMode}
-                            onChange={onRenderModeChange}
-                            disabled={status === "streaming" || interactionLocked}
-                            iconOnly={isRenderModeIconOnly}
-                        />
+                    <div className="flex items-center gap-1.5">
                         {!shouldHideModelSelector && (
                             <ModelSelector
                                 selectedModelKey={selectedModelKey}
@@ -352,102 +349,20 @@ export function ChatInputOptimized({
                                 compact
                             />
                         )}
-                        {comparisonEnabled ? (
-                            <div className="flex items-center gap-2">
-                                {isBusy ? (
-                                    <Button
-                                        type="button"
-                                        onClick={onStop}
-                                        className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600"
-                                        size="sm"
-                                        aria-label="暂停生成"
-                                    >
-                                        <Square className="h-3.5 w-3.5 fill-current" />
-                                    </Button>
-                                ) : (
-                                    <>
-                                        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
-
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-[30px] gap-1 rounded-none border-0 bg-slate-900/10 px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-900/20 disabled:opacity-60"
-                                            disabled={
-                                                status === "streaming" ||
-                                                (!input.trim() && !isCompareLoading) ||
-                                                interactionLocked
-                                            }
-                                                onClick={onCompareRequest}
-                                                aria-label="使用当前提示词进行多模型对比"
-                                            >
-                                                {isCompareLoading ? (
-                                                    <>
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        生成中…
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        对比
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-[30px] w-[30px] rounded-none border-r border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                            onClick={onOpenComparisonConfig}
-                                            disabled={status === "streaming" || interactionLocked}
-                                            aria-label="对比设置"
-                                        >
-                                            <Settings className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                        <Button
-                                            type="submit"
-                                            disabled={
-                                                status === "streaming" ||
-                                                !input.trim() ||
-                                                interactionLocked
-                                            }
-                                            className="h-[30px] min-w-[30px] gap-2 rounded-full bg-slate-900 text-white text-[11px] shadow-sm transition hover:bg-slate-900/90 disabled:opacity-60"
-                                            size="sm"
-                                            aria-label="发送消息"
-                                        >
-                                            <Send className="h-4 w-4" />
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-                        ) : (
-                            isBusy ? (
-                                <Button
-                                    type="button"
-                                    onClick={onStop}
-                                    className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600"
-                                    size="sm"
-                                    aria-label="暂停生成"
-                                >
-                                    <Square className="h-3.5 w-3.5 fill-current" />
-                                </Button>
-                            ) : (
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        status === "streaming" ||
-                                        !input.trim() ||
-                                        interactionLocked
-                                    }
-                                    className="h-[30px] min-w-[78px] gap-2 rounded-full bg-slate-900 text-white text-[11px] shadow-sm transition hover:bg-slate-900/90 disabled:opacity-60"
-                                    size="sm"
-                                    aria-label="发送消息"
-                                >
-                                    <Send className="h-4 w-4" />
-                                    发送
-                                </Button>
-                            )
-                        )}
+                        <Button
+                            type="submit"
+                            disabled={
+                                status === "streaming" ||
+                                !input.trim() ||
+                                interactionLocked
+                            }
+                            className="h-[28px] min-w-[70px] gap-2 rounded-full bg-slate-900 text-white text-[11px] font-medium shadow-[0_2px_8px_rgba(0,0,0,0.25),0_1px_2px_rgba(0,0,0,0.15)] transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
+                            size="sm"
+                            aria-label="发送消息"
+                        >
+                            <Send className="h-4 w-4" />
+                            发送
+                        </Button>
                     </div>
                 </div>
             </div>

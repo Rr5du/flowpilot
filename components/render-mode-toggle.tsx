@@ -21,16 +21,16 @@ const MODES: Array<{
     Icon: typeof Sparkles;
 }> = [
     {
-        id: "drawio",
-        label: "draw.io",
-        hint: "生成可编辑的 draw.io 文件，便于继续细调",
-        Icon: Palette,
-    },
-    {
         id: "svg",
         label: "SVG",
-        hint: "生成干净的矢量图，方便粘贴到文档或幻灯片",
+        hint: "生成高保真 SVG 预览，适合直接插入文档或导出高清图",
         Icon: Sparkles,
+    },
+    {
+        id: "drawio",
+        label: "draw.io",
+        hint: "生成可编辑的 draw.io 图，便于继续细调和二次修改",
+        Icon: Palette,
     },
 ];
 
@@ -44,7 +44,10 @@ export function RenderModeToggle({
     return (
         <div
             className={cn(
-                "flex items-center overflow-hidden rounded-full border border-slate-200/80 bg-white/90 text-[11px] font-semibold shadow-sm",
+                "relative flex items-center gap-1.5 overflow-visible rounded-full p-1 text-[10px] font-semibold backdrop-blur-xl",
+                // iOS 16 液态玻璃质感
+                "bg-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.4)]",
+                "border border-white/40",
                 disabled && "cursor-not-allowed opacity-70",
                 className
             )}
@@ -64,18 +67,20 @@ export function RenderModeToggle({
                         }}
                         disabled={disabled}
                         className={cn(
-                            "flex items-center py-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
+                            "relative flex items-center py-1.5 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 focus-visible:ring-offset-0",
                             iconOnly
-                                ? "px-3 min-w-[36px] justify-center"
-                                : "gap-1 px-2.5",
-                            index > 0 && "border-l border-slate-200/70",
+                                ? "px-2.5 min-w-[32px] justify-center"
+                                : "gap-1.5 px-3",
                             isActive
-                                ? "bg-slate-900 text-white shadow-sm"
-                                : "text-slate-600 hover:bg-slate-50"
+                                ? "bg-slate-900 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25),0_1px_2px_rgba(0,0,0,0.15)] scale-[1.02]"
+                                : "text-slate-700 hover:bg-white/40 active:scale-95"
                         )}
                     >
-                        <Icon className="h-3.5 w-3.5" />
-                        {!iconOnly && <span>{mode.label}</span>}
+                        <Icon className={cn(
+                            "transition-all",
+                            iconOnly ? "h-3.5 w-3.5" : "h-3.5 w-3.5"
+                        )} />
+                        {!iconOnly && <span className="font-medium">{mode.label}</span>}
                     </button>
                 );
 

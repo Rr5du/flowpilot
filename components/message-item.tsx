@@ -42,6 +42,7 @@ export const MessageItem = memo(({
     onMessageRevert,
 }: MessageItemProps) => {
     const shouldCollapse = fullMessageText.length > 500;
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     return (
         <div className="mb-5 flex flex-col gap-2">
@@ -55,11 +56,11 @@ export const MessageItem = memo(({
                     <div className="relative max-w-[min(520px,80%)] group">
                         <div
                             className={cn(
-                                "rounded-lg px-3.5 py-2.5 text-sm leading-relaxed",
+                                "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                                 "whitespace-pre-wrap break-words",
                                 isUser
-                                    ? "bg-slate-900 text-white"
-                                    : "border border-slate-200/60 bg-white text-slate-900",
+                                    ? "bg-slate-900 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25),0_1px_2px_rgba(0,0,0,0.15)]"
+                                    : "backdrop-blur-xl bg-white/60 border border-white/40 text-slate-900 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.4)]",
                                 !isExpanded && shouldCollapse && "max-h-[200px] overflow-hidden relative"
                             )}
                         >
@@ -74,15 +75,40 @@ export const MessageItem = memo(({
                                             </div>
                                         );
                                     case "file":
+                                        // 如果是SVG，直接渲染矢量图，否则使用Image组件
+                                        if (part.mediaType === "image/svg+xml" && part.url?.startsWith("data:image/svg+xml")) {
+                                            // 解码SVG内容
+                                            const svgContent = decodeURIComponent(part.url.replace(/^data:image\/svg\+xml[^,]*,/, ""));
+                                            return (
+                                                <div 
+                                                    key={index} 
+                                                    className="mt-3 max-w-full overflow-auto rounded-xl border bg-slate-50 p-2 flex items-center justify-center"
+                                                    style={{ maxHeight: "240px" }}
+                                                >
+                                                    <div 
+                                                        className="max-w-full max-h-full"
+                                                        dangerouslySetInnerHTML={{ __html: svgContent }}
+                                                    />
+                                                </div>
+                                            );
+                                        }
                                         return (
-                                            <div key={index} className="mt-3">
-                                                <Image
-                                                    src={part.url}
-                                                    width={240}
-                                                    height={240}
-                                                    alt={`file-${index}`}
-                                                    className="rounded-xl border object-contain"
-                                                />
+                                            <div key={index} className="mt-3 inline-flex">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewImage(part.url)}
+                                                    className="group relative block overflow-hidden rounded-lg border border-slate-200 bg-white hover:border-slate-300"
+                                                    style={{ width: 160, height: 120 }}
+                                                    title="点击放大预览"
+                                                >
+                                                    <Image
+                                                        src={part.url}
+                                                        fill
+                                                        alt={`file-${index}`}
+                                                        sizes="160px"
+                                                        className="object-contain"
+                                                    />
+                                                </button>
                                             </div>
                                         );
                                     default:
@@ -104,6 +130,35 @@ export const MessageItem = memo(({
                             )}
                         </div>
 
+                        {previewImage && (
+                            <div
+                                className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                                onClick={() => setPreviewImage(null)}
+                            >
+                                <div
+                                    className="relative max-h-[90vh] max-w-[90vw] rounded-2xl bg-white p-3 shadow-2xl"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <button
+                                        type="button"
+                                        className="absolute right-2 top-2 rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-white shadow hover:bg-slate-900"
+                                        onClick={() => setPreviewImage(null)}
+                                    >
+                                        关闭
+                                    </button>
+                                    <div className="relative h-[70vh] w-[78vw] max-w-5xl">
+                                        <Image
+                                            src={previewImage}
+                                            alt="full-preview"
+                                            fill
+                                            sizes="90vw"
+                                            className="object-contain"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className={cn(
                             "flex items-center gap-1.5 mt-1.5",
                             isUser ? "justify-end" : "justify-start"
@@ -112,11 +167,11 @@ export const MessageItem = memo(({
                                 type="button"
                                 onClick={() => onCopyMessage(message.id, fullMessageText)}
                                 className={cn(
-                                    "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
+                                    "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all backdrop-blur-xl",
                                     isUser
-                                        ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
-                                    isCopied && "text-emerald-600"
+                                        ? "text-slate-700 bg-white/90 border border-white/60 hover:bg-white hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:scale-95"
+                                        : "text-slate-600 bg-white/60 border border-white/40 hover:bg-white/80 hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-95",
+                                    isCopied && "!text-emerald-600 !bg-emerald-50/90 !border-emerald-200/40"
                                 )}
                                 title="复制消息"
                             >
@@ -142,10 +197,10 @@ export const MessageItem = memo(({
                                     type="button"
                                     onClick={() => onToggleExpanded(message.id)}
                                     className={cn(
-                                        "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
+                                        "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all backdrop-blur-xl",
                                         isUser
-                                            ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                            ? "text-slate-700 bg-white/90 border border-white/60 hover:bg-white hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:scale-95"
+                                            : "text-slate-600 bg-white/60 border border-white/40 hover:bg-white/80 hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-95"
                                     )}
                                 >
                                     {isExpanded ? (
@@ -175,10 +230,10 @@ export const MessageItem = memo(({
                                         })
                                     }
                                     className={cn(
-                                        "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
+                                        "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all backdrop-blur-xl",
                                         isUser
-                                            ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                                            ? "text-slate-700 bg-white/90 border border-white/60 hover:bg-white hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:scale-95"
+                                            : "text-slate-600 bg-white/60 border border-white/40 hover:bg-white/80 hover:text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-95"
                                     )}
                                     title="回滚到此处"
                                 >

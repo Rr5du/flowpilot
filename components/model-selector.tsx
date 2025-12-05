@@ -72,7 +72,7 @@ interface GroupedModelOptions {
 export function ModelSelector({
     selectedModelKey,
     onModelChange,
-    models,
+    models = [],
     onManage,
     disabled = false,
     onModelStreamingChange,
@@ -105,19 +105,12 @@ export function ModelSelector({
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             const target = event.target as Node;
-            console.log('[ModelSelector] Click outside detected:', {
-                target,
-                triggerContains: triggerRef.current?.contains(target),
-                dropdownContains: dropdownRef.current?.contains(target),
-                isOpen
-            });
             if (
                 triggerRef.current?.contains(target) ||
                 dropdownRef.current?.contains(target)
             ) {
                 return;
             }
-            console.log('[ModelSelector] Closing dropdown');
             setIsOpen(false);
         }
 
@@ -138,6 +131,7 @@ export function ModelSelector({
     }, [isOpen, updateMenuPosition]);
 
     const groupedModels = useMemo<GroupedModelOptions[]>(() => {
+        if (!Array.isArray(models)) return [];
         const map = new Map<string, GroupedModelOptions>();
         models.forEach((model) => {
             if (!map.has(model.endpointId)) {
@@ -154,12 +148,11 @@ export function ModelSelector({
     }, [models]);
 
     const selectedModel = useMemo(
-        () => models.find((model) => model.key === selectedModelKey),
+        () => Array.isArray(models) ? models.find((model) => model.key === selectedModelKey) : undefined,
         [models, selectedModelKey]
     );
 
     const handleSelect = (modelKey: string) => {
-        console.log('[ModelSelector] handleSelect called:', modelKey);
         onModelChange(modelKey);
         setIsOpen(false);
     };
@@ -177,14 +170,13 @@ export function ModelSelector({
                 variant="outline"
                 size="sm"
                 onClick={(e) => {
-                    console.log('[ModelSelector] Trigger clicked, current isOpen:', isOpen);
                     e.stopPropagation();
                     setIsOpen((prev) => !prev);
                 }}
                 disabled={disabled}
                 ref={triggerRef}
                 className={cn(
-                    "justify-between rounded-full border-slate-200 font-semibold text-slate-700 hover:border-slate-300",
+                    "justify-between rounded-full backdrop-blur-xl bg-white/60 border border-white/40 font-semibold text-slate-700 shadow-[0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] hover:bg-white/70 transition-all active:scale-95",
                     compact
                         ? "h-[30px] min-w-[110px] px-2.5 text-[11px]"
                         : "h-8 min-w-[120px] px-3 text-xs",
@@ -230,8 +222,8 @@ export function ModelSelector({
                             e.stopPropagation();
                         }}
                     >
-                        <div className="w-full rounded-2xl border border-slate-100 bg-white/95 shadow-xl">
-                            {models.length === 0 ? (
+                        <div className="w-full rounded-2xl backdrop-blur-xl bg-white/90 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.4)]">
+                            {(!models || models.length === 0) ? (
                                 <div className="p-4 text-sm text-slate-500">
                                     暂无可用模型，请先完成接口配置。
                                     <Button
@@ -261,7 +253,7 @@ export function ModelSelector({
                                                 <div
                                                     key={model.key}
                                                     className={cn(
-                                                        "flex w-full flex-col items-start gap-2 px-4 py-2 text-left text-sm transition hover:bg-slate-50",
+                                                        "flex w-full flex-col items-start gap-2 px-4 py-2 text-left text-sm transition-all hover:bg-white/50",
                                                         selectedModelKey === model.key &&
                                                             "bg-slate-900/5"
                                                     )}
@@ -330,11 +322,9 @@ export function ModelSelector({
                                     variant="ghost"
                                     className="w-full rounded-full text-xs font-semibold text-slate-500 hover:text-slate-900"
                                     onClick={(e) => {
-                                        console.log('[ModelSelector] Manage button clicked');
                                         e.preventDefault();
                                         e.stopPropagation();
                                         setIsOpen(false);
-                                        console.log('[ModelSelector] Calling onManage');
                                         onManage?.();
                                     }}
                                     onMouseDown={(e) => {

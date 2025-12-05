@@ -16,7 +16,6 @@ import {
     ComparisonCardResult,
 } from "@/types/comparison";
 import { cn, decodeDiagramXml } from "@/lib/utils";
-import { svgToDataUrl } from "@/lib/svg";
 import { useMemo } from "react";
 
 interface ComparisonReviewModalProps {
@@ -72,8 +71,8 @@ function PreviewPanel({
         buildPreviewUrl
             ? buildPreviewUrl(rawXmlForPreview)
             : null;
-    const previewSvgSrc = svgToDataUrl(result.previewSvg);
-    const hasPreviewSvg = Boolean(previewSvgSrc);
+    const previewSvg = result.previewSvg?.trim();
+    const hasPreviewSvg = Boolean(previewSvg);
     const hasPreviewImage = Boolean(result.previewImage?.trim());
     const normalizedXml = useMemo(() => {
         if (result.xml?.trim()) {
@@ -199,16 +198,10 @@ function PreviewPanel({
                     </div>
                     {result.status === "ok" ? (
                         hasPreviewSvg ? (
-                            <div className="relative h-full w-full">
-                                <Image
-                                    src={previewSvgSrc ?? ""}
-                                    alt={`comparison-preview-svg-${result.id}`}
-                                    fill
-                                    className="object-cover"
-                                    sizes="(max-width: 768px) 100vw, 400px"
-                                    unoptimized
-                                />
-                            </div>
+                            <div 
+                                className="h-full w-full flex items-center justify-center p-4"
+                                dangerouslySetInnerHTML={{ __html: previewSvg ?? "" }}
+                            />
                         ) : hasPreviewImage ? (
                             <div className="relative h-full w-full">
                                 <Image
